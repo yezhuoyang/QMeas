@@ -180,6 +180,301 @@ theorem proj_X_flip_by_Z (s : ℤ) :
 
 /-! ### Summary: the measurement-level optimization catalogue. -/
 
+/-! ### Pauli involution and anticommutation identities. -/
+
+/-- Pauli X is self-inverse. -/
+theorem X_sq_eq_I : σX * σX = I2 := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σX, I2, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons]
+
+/-- Pauli Z is self-inverse. -/
+theorem Z_sq_eq_I : σZ * σZ = I2 := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σZ, I2, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons]
+
+/-- Pauli Y is self-inverse: `σY · σY = I`. -/
+theorem Y_sq_eq_I : σY * σY = I2 := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σY, I2, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    ring
+
+/-- `σX · σY = i·σZ`. -/
+theorem X_mul_Y : σX * σY = Complex.I • σZ := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σX, σY, σZ, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.smul_apply, Matrix.cons_val', Matrix.cons_val_zero,
+          Matrix.cons_val_one, Matrix.empty_val', Matrix.cons_val_fin_one,
+          Matrix.head_cons] <;>
+    ring
+
+/-- `σY · σZ = i·σX`. -/
+theorem Y_mul_Z : σY * σZ = Complex.I • σX := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σY, σZ, σX, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.smul_apply, Matrix.cons_val', Matrix.cons_val_zero,
+          Matrix.cons_val_one, Matrix.empty_val', Matrix.cons_val_fin_one,
+          Matrix.head_cons] <;>
+    ring
+
+/-- `σZ · σX = i·σY`. -/
+theorem Z_mul_X : σZ * σX = Complex.I • σY := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σZ, σX, σY, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.smul_apply, Matrix.cons_val', Matrix.cons_val_zero,
+          Matrix.cons_val_one, Matrix.empty_val', Matrix.cons_val_fin_one,
+          Matrix.head_cons] <;>
+    ring
+
+/-- X and Y anticommute: `σX · σY = -(σY · σX)`. -/
+theorem X_Y_anticommute : σX * σY = -(σY * σX) := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σX, σY, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.neg_apply] <;>
+    ring
+
+/-- X and Z anticommute. -/
+theorem X_Z_anticommute : σX * σZ = -(σZ * σX) := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σX, σZ, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.neg_apply] <;>
+    ring
+
+/-- Y and Z anticommute. -/
+theorem Y_Z_anticommute : σY * σZ = -(σZ * σY) := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [σY, σZ, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.neg_apply] <;>
+    ring
+
+/-! ### Projector-eigenvalue identity: `P · Π_P^{(s)} = s · Π_P^{(s)}`.
+
+This is the central fact behind rule R1 (duplicate-measurement
+collapse): once we've projected onto the $s$-eigenspace of $P$,
+applying $P$ acts as the scalar $s$.  Equivalently, a second
+measurement of $P$ on this already-projected state is deterministic
+with outcome $s$. -/
+
+/-- `σZ · Π_Z^{(+1)} = Π_Z^{(+1)}` (the `+1` eigenvalue is the scalar). -/
+theorem Z_mul_proj_Z_pos : σZ * projector σZ 1 = projector σZ 1 := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σZ, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    push_cast <;> ring
+
+/-- `σZ · Π_Z^{(-1)} = -Π_Z^{(-1)}`. -/
+theorem Z_mul_proj_Z_neg : σZ * projector σZ (-1) = -projector σZ (-1) := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σZ, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.neg_apply] <;>
+    push_cast <;> ring
+
+/-- `σX · Π_X^{(+1)} = Π_X^{(+1)}`. -/
+theorem X_mul_proj_X_pos : σX * projector σX 1 = projector σX 1 := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σX, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    push_cast <;> ring
+
+theorem X_mul_proj_X_neg : σX * projector σX (-1) = -projector σX (-1) := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σX, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.neg_apply] <;>
+    push_cast <;> ring
+
+-- (Y_mul_proj_Y_pos/neg: analogous to Z/X variants; left as future work
+--  because the straightforward `funext; fin_cases; simp; ring` proof
+--  exceeds Lean's default heartbeat budget due to Complex.I computations.
+--  A cleaner algebraic proof using `Y_sq_eq_I` is possible but requires
+--  additional matrix-algebra infrastructure.)
+
+/-! ### Projector difference: `Π_P^{(+1)} - Π_P^{(-1)} = P`.
+
+This is the defining property of a Pauli as the difference of its
+eigenspace projectors, and is the dual of the completeness Lemma. -/
+
+theorem proj_diff_Z : projector σZ 1 - projector σZ (-1) = σZ := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σZ, Matrix.sub_apply, Matrix.cons_val',
+          Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.empty_val',
+          Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    push_cast <;> ring
+
+theorem proj_diff_X : projector σX 1 - projector σX (-1) = σX := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σX, Matrix.sub_apply, Matrix.cons_val',
+          Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.empty_val',
+          Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    push_cast <;> ring
+
+theorem proj_diff_Y : projector σY 1 - projector σY (-1) = σY := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σY, Matrix.sub_apply, Matrix.cons_val',
+          Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.empty_val',
+          Matrix.cons_val_fin_one, Matrix.head_cons, Complex.I_sq, Complex.I_mul_I] <;>
+    push_cast <;> ring
+
+/-! ### More 2-qubit commuting measurement pairs.
+
+The rule for Paulis to commute: an even number of their tensor
+factors must anticommute.  We prove the cases that arise in
+lattice-surgery compilation and optimization. -/
+
+/-- `(Y⊗Y) · (Z⊗Z) = (Z⊗Z) · (Y⊗Y)`: both tensor positions
+    anticommute (Y,Z anticommute); 2 × anticommute = commute. -/
+theorem proj_commute_YY_ZZ (s t : ℤ) :
+    projector (kron2 σY σY) s * projector (kron2 σZ σZ) t
+    = projector (kron2 σZ σZ) t * projector (kron2 σY σY) s := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, kron2, σY, σZ, Matrix.mul_apply, Fin.sum_univ_four,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.of_apply] <;>
+    push_cast <;> ring
+
+/-- `(Y⊗Y) · (X⊗X) = (X⊗X) · (Y⊗Y)`. -/
+theorem proj_commute_YY_XX (s t : ℤ) :
+    projector (kron2 σY σY) s * projector (kron2 σX σX) t
+    = projector (kron2 σX σX) t * projector (kron2 σY σY) s := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, kron2, σY, σX, Matrix.mul_apply, Fin.sum_univ_four,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.of_apply] <;>
+    push_cast <;> ring
+
+/-- `(Z⊗Z) · (Z⊗I) = (Z⊗I) · (Z⊗Z)`: Z on both factors commutes
+    with Z on just qubit 0 (all Z's commute with each other). -/
+theorem proj_commute_ZZ_ZI (s t : ℤ) :
+    projector (kron2 σZ σZ) s * projector (kron2 σZ I2) t
+    = projector (kron2 σZ I2) t * projector (kron2 σZ σZ) s := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, kron2, σZ, I2, Matrix.mul_apply, Fin.sum_univ_four,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.of_apply] <;>
+    push_cast <;> ring
+
+/-- `(X⊗Z) · (Z⊗X) = (Z⊗X) · (X⊗Z)`: mixed measurements that appear
+    in the `Pauli-frame-propagation` analysis.  Two anticommutations. -/
+theorem proj_commute_XZ_ZX (s t : ℤ) :
+    projector (kron2 σX σZ) s * projector (kron2 σZ σX) t
+    = projector (kron2 σZ σX) t * projector (kron2 σX σZ) s := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, kron2, σX, σZ, Matrix.mul_apply, Fin.sum_univ_four,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+          Matrix.of_apply] <;>
+    push_cast <;> ring
+
+/-! ### More anticommutation "frame-flip" identities.
+
+In addition to the X/Z flip of §…, Y also flips both X- and Z-basis
+measurements, Z flips Y-basis measurements, and X flips Y-basis
+measurements. -/
+
+theorem proj_Y_flip_by_X (s : ℤ) :
+    σX * projector σY s = projector σY (-s) * σX := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σX, σY, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    push_cast <;> ring
+
+theorem proj_Y_flip_by_Z (s : ℤ) :
+    σZ * projector σY s = projector σY (-s) * σZ := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σZ, σY, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    push_cast <;> ring
+
+theorem proj_Z_flip_by_Y (s : ℤ) :
+    σY * projector σZ s = projector σZ (-s) * σY := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σY, σZ, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    push_cast <;> ring
+
+theorem proj_X_flip_by_Y (s : ℤ) :
+    σY * projector σX s = projector σX (-s) * σY := by
+  funext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σY, σX, Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons] <;>
+    push_cast <;> ring
+
+/-! ### Sandwich rule: `P · Π_Q^{(s)} · P^† = Π_Q^{(± s)}`.
+
+If `P` (Pauli) and `Q` (measured observable) commute, the sandwich is
+trivial; if they anticommute, the projector flips to the opposite
+eigenspace.  This generalizes the frame-flip rule and is what lets a
+sequence of Pauli-frame updates be "carried" past any number of
+measurements without any physical cost. -/
+
+/-- Sandwich on anticommuting X/Z: `σX · Π_Z^{(s)} · σX = Π_Z^{(-s)}`.
+
+    Derivation: `σX · Π_Z^{(s)} = Π_Z^{(-s)} · σX` (anticommutation
+    flip), then `Π_Z^{(-s)} · σX · σX = Π_Z^{(-s)} · I = Π_Z^{(-s)}`. -/
+theorem sandwich_Z_by_X (s : ℤ) :
+    σX * projector σZ s * σX = projector σZ (-s) := by
+  funext i j
+  simp only [Matrix.mul_apply, Fin.sum_univ_two]
+  fin_cases i <;> fin_cases j <;>
+    simp [projector, σX, σZ, Matrix.cons_val', Matrix.cons_val_zero,
+          Matrix.cons_val_one, Matrix.empty_val', Matrix.cons_val_fin_one,
+          Matrix.head_cons] <;>
+    push_cast <;> ring
+
+-- (sandwich_Z_by_Z: provable analogously; omitted for Lean-build-time
+--  reasons — the `calc`-chain invokes `Matrix.mul_assoc` which triggers
+--  `whnf` reduction on concrete 2×2 matrices and exceeds heartbeats.
+--  The anticommuting sandwich `sandwich_Z_by_X` is proved above.)
+
+/-! ### Top-level catalogue (extended). -/
+
 theorem measurement_optimization_catalogue :
     -- idempotence
     ((projector σZ 1) * (projector σZ 1) = projector σZ 1) ∧
@@ -191,19 +486,60 @@ theorem measurement_optimization_catalogue :
     -- completeness
     (projector σZ 1 + projector σZ (-1) = I2) ∧
     (projector σX 1 + projector σX (-1) = I2) ∧
+    -- Pauli involutions
+    (σX * σX = I2) ∧ (σY * σY = I2) ∧ (σZ * σZ = I2) ∧
+    -- Pauli products (quaternion-like identities)
+    (σX * σY = Complex.I • σZ) ∧
+    (σY * σZ = Complex.I • σX) ∧
+    (σZ * σX = Complex.I • σY) ∧
+    -- Pauli anticommutations
+    (σX * σY = -(σY * σX)) ∧
+    (σY * σZ = -(σZ * σY)) ∧
+    (σX * σZ = -(σZ * σX)) ∧
+    -- Eigenvalue identity: P Π_P^{(±)} = ±Π_P^{(±)}
+    (σZ * projector σZ 1   = projector σZ 1) ∧
+    (σZ * projector σZ (-1) = -projector σZ (-1)) ∧
+    (σX * projector σX 1   = projector σX 1) ∧
+    (σX * projector σX (-1) = -projector σX (-1)) ∧
+    -- Projector difference: Π_P^{(+)} - Π_P^{(-)} = P
+    (projector σZ 1 - projector σZ (-1) = σZ) ∧
+    (projector σX 1 - projector σX (-1) = σX) ∧
+    (projector σY 1 - projector σY (-1) = σY) ∧
     -- commuting-measurement reordering (enables parallelization)
     (∀ s t : ℤ, projector (kron2 σZ σZ) s * projector (kron2 σX σX) t =
                 projector (kron2 σX σX) t * projector (kron2 σZ σZ) s) ∧
     (∀ s t : ℤ, projector (kron2 σZ I2) s * projector (kron2 I2 σX) t =
                 projector (kron2 I2 σX) t * projector (kron2 σZ I2) s) ∧
+    (∀ s t : ℤ, projector (kron2 σY σY) s * projector (kron2 σZ σZ) t =
+                projector (kron2 σZ σZ) t * projector (kron2 σY σY) s) ∧
+    (∀ s t : ℤ, projector (kron2 σY σY) s * projector (kron2 σX σX) t =
+                projector (kron2 σX σX) t * projector (kron2 σY σY) s) ∧
+    (∀ s t : ℤ, projector (kron2 σZ σZ) s * projector (kron2 σZ I2) t =
+                projector (kron2 σZ I2) t * projector (kron2 σZ σZ) s) ∧
+    (∀ s t : ℤ, projector (kron2 σX σZ) s * projector (kron2 σZ σX) t =
+                projector (kron2 σZ σX) t * projector (kron2 σX σZ) s) ∧
     -- frame-absorption identities (flip outcome on anticommutation)
     (∀ s : ℤ, σX * projector σZ s = projector σZ (-s) * σX) ∧
-    (∀ s : ℤ, σZ * projector σX s = projector σX (-s) * σZ) :=
+    (∀ s : ℤ, σZ * projector σX s = projector σX (-s) * σZ) ∧
+    (∀ s : ℤ, σX * projector σY s = projector σY (-s) * σX) ∧
+    (∀ s : ℤ, σZ * projector σY s = projector σY (-s) * σZ) ∧
+    (∀ s : ℤ, σY * projector σZ s = projector σZ (-s) * σY) ∧
+    (∀ s : ℤ, σY * projector σX s = projector σX (-s) * σY) ∧
+    -- sandwich rule (anticommuting case)
+    (∀ s : ℤ, σX * projector σZ s * σX = projector σZ (-s)) :=
   ⟨proj_idem_Z_pos, proj_idem_Z_neg, proj_idem_X_pos,
    proj_orth_Z, proj_orth_X,
    proj_sum_Z, proj_sum_X,
+   X_sq_eq_I, Y_sq_eq_I, Z_sq_eq_I,
+   X_mul_Y, Y_mul_Z, Z_mul_X,
+   X_Y_anticommute, Y_Z_anticommute, X_Z_anticommute,
+   Z_mul_proj_Z_pos, Z_mul_proj_Z_neg, X_mul_proj_X_pos, X_mul_proj_X_neg,
+   proj_diff_Z, proj_diff_X, proj_diff_Y,
    proj_commute_ZZ_XX, proj_commute_disjoint,
-   proj_Z_flip_by_X, proj_X_flip_by_Z⟩
+   proj_commute_YY_ZZ, proj_commute_YY_XX, proj_commute_ZZ_ZI, proj_commute_XZ_ZX,
+   proj_Z_flip_by_X, proj_X_flip_by_Z,
+   proj_Y_flip_by_X, proj_Y_flip_by_Z, proj_Z_flip_by_Y, proj_X_flip_by_Y,
+   sandwich_Z_by_X⟩
 
 end Optimization
 end QMeas
