@@ -13,3 +13,4 @@ import QMeas.Gadgets.S
 import QMeas.Gadgets.CNOT
 import QMeas.Soundness
 import QMeas.Completeness
+import QMeas.Optimization
