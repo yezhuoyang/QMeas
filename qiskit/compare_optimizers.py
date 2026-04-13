@@ -128,15 +128,19 @@ def meas_depth(prog):
     return max(dp, default=0)
 
 def _dependent(m1, m2):
-    q1, q2 = set(m1.qubits), set(m2.qubits)
-    overlap = q1 & q2
+    """Two measurements are dependent (must run sequentially) iff their
+    observables ANTICOMMUTE.  Two tensor-product Paulis anticommute iff
+    the number of positions where their single-qubit factors anticommute
+    is ODD.  Disjoint support ⇒ count 0 ⇒ commute ⇒ not dependent."""
+    overlap = set(m1.qubits) & set(m2.qubits)
     if not overlap: return False
+    count = 0
     for q in overlap:
         p1 = m1.pauli[m1.qubits.index(q)]
         p2 = m2.pauli[m2.qubits.index(q)]
         if p1 != p2 and p1 != "I" and p2 != "I":
-            return True
-    return False
+            count += 1
+    return count % 2 == 1
 
 
 # =====================================================================
@@ -241,13 +245,16 @@ def _r7_stabilizer_derivation(prog):
 
 
 def _pauli_anticommute_overlap(p1, q1, p2, q2):
+    """Return True iff the two Pauli strings anticommute (odd number of
+    anticommuting positions on their shared support)."""
     overlap = set(q1) & set(q2)
     if not overlap: return False
+    count = 0
     for q in overlap:
         a = p1[q1.index(q)]; b = p2[q2.index(q)]
         if a != "I" and b != "I" and a != b:
-            return True
-    return False
+            count += 1
+    return count % 2 == 1
 
 
 # =====================================================================
