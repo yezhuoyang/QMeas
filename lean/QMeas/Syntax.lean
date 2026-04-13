@@ -1,0 +1,53 @@
+/-
+# QMeas syntax.
+
+A QMeas program is a sequence of basic commands: single- and two-qubit Pauli
+measurements (storing outcomes in classical bits), Pauli-frame updates
+(`frameX/Y/Z`), conditionals on classical bits, bounded for-loops, and a
+no-op `skip`.
+
+We index quantum registers by `Nat`.  A QMeas program is a syntactic object,
+independent of the operational semantics in `QMeas.Semantics`.
+-/
+
+namespace QMeas
+
+/-- Single-qubit Pauli labels for measurement bases and frame updates. -/
+inductive Pauli1 | X | Y | Z
+  deriving DecidableEq, Repr
+
+/-- Two-qubit Pauli labels for joint measurements. -/
+inductive Pauli2 | XX | ZZ | XZ | ZX | YZ | ZY | YX | XY | YY
+  deriving DecidableEq, Repr
+
+/-- A QMeas command.  `Reg` is the type of quantum register names,
+    `Bit`  is the type of classical bit names. -/
+inductive Stmt where
+  /-- No-op. -/
+  | skip : Stmt
+  /-- `r := M_P(q)` for single-qubit Pauli `P`. -/
+  | meas1 (r : Nat) (P : Pauli1) (q : Nat) : Stmt
+  /-- `r := M_P(qa, qb)` for two-qubit Pauli `P`. -/
+  | meas2 (r : Nat) (P : Pauli2) (qa qb : Nat) : Stmt
+  /-- Pauli-frame update on a single qubit. -/
+  | frame (P : Pauli1) (q : Nat) : Stmt
+  /-- Sequencing. -/
+  | seq : Stmt → Stmt → Stmt
+  /-- `if r = +1 then s1 else s2` (treats classical-bit value as ±1). -/
+  | ifPos (r : Nat) (s1 s2 : Stmt) : Stmt
+  /-- Bounded for-loop with counter name `i`, bound `N`, and body `body`. -/
+  | forLoop (i : Nat) (N : Nat) (body : Stmt) : Stmt
+  /-- Discard a quantum register from the live set. -/
+  | discard (q : Nat) : Stmt
+  deriving Repr
+
+/-- A QMeas program is just a top-level statement. -/
+abbrev Prog := Stmt
+
+/-- Convenience: chain a list of statements with `seq`. -/
+def Stmt.chain : List Stmt → Stmt
+  | []      => .skip
+  | [s]     => s
+  | s :: ss => .seq s (Stmt.chain ss)
+
+end QMeas
