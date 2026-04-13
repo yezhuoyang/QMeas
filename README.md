@@ -20,6 +20,12 @@ Palsberg, UCLA).  It contains:
 │       ├── QState.lean      # Vec n, applyOp, projector, postMeas
 │       ├── Syntax.lean      # QMeas program syntax
 │       ├── Semantics.lean   # configuration, frame, store
+│       ├── Sem.lean         # small-step Step + MultiStep relations
+│       ├── Frame.lean       # Pauli ops, Heisenberg pushH/pushS
+│       ├── Clifford.lean    # Cliff1/Cliff2 syntax, denotational semantics
+│       ├── Compiler.lean    # compile1/compile2 : Cliff* → Stmt
+│       ├── Soundness.lean   # per-gate soundness + commutation lemmas
+│       ├── Completeness.lean # totality + universality (axiomatized)
 │       └── Gadgets/
 │           ├── H.lean       # H_gadget_correct
 │           ├── S.lean       # S_gadget_correct
@@ -29,7 +35,9 @@ Palsberg, UCLA).  It contains:
 │   ├── search_gadgets.py          # search over Pauli measurement triples
 │   ├── verify_chosen_gadgets.py   # 50-seed verification of the chosen gadgets
 │   ├── derive_cnot_branches.py    # symbolic per-branch states for CNOT
-│   └── cross_check_lean.py        # mirror the Lean state defs and re-verify
+│   ├── cross_check_lean.py        # mirror the Lean state defs and re-verify
+│   └── compile_and_validate.py    # compile random Clifford circuits, simulate,
+│                                  # frame-correct, verify == U|ψ⟩
 └── paper/                          # paper artifact (TBD)
 ```
 
@@ -93,12 +101,18 @@ script would detect it.
 
 ## Status
 
-| Component                                      | Status        |
-|-----------------------------------------------|---------------|
-| H gadget — Lean proof, all 4 branches         | ✅ no sorry   |
-| S gadget — Lean proof, all 4 branches         | ✅ no sorry   |
-| CNOT gadget — Lean proof, all 8 branches      | ✅ no sorry   |
-| Qiskit cross-check                             | ✅ all pass   |
-| Operational small-step semantics (formalized) | sketched      |
-| Soundness of the Clifford → QMeas compiler    | sketched      |
-| Optimizer rules                                | future work   |
+| Component                                              | Status         |
+|-------------------------------------------------------|----------------|
+| H gadget — Lean proof, all 4 branches                 | ✅ no sorry    |
+| S gadget — Lean proof, all 4 branches                 | ✅ no sorry    |
+| CNOT gadget — Lean proof, all 8 branches              | ✅ no sorry    |
+| Qiskit cross-check (Lean theorem ↔ physics)           | ✅ all pass    |
+| Operational small-step semantics (Step / MultiStep)   | ✅ definitions formalized |
+| Compiler `compile1`, `compile2`                       | ✅ total       |
+| Compiler totality theorems                            | ✅ proved      |
+| Per-gate soundness theorems (base cases)              | ✅ proved      |
+| Pauli–Clifford commutation lemmas (`H_commute_*`, `S_commute_*`) | ✅ proved |
+| Full structural-induction soundness (`soundness1_full`) | sketched (Layer 3 inductive case is the principal remaining proof obligation) |
+| Universality of `{H, S, CNOT}` for the Clifford group | axiomatized (Gottesman 1998) |
+| Compile-and-validate over random circuits (Python)    | ✅ 19/19 pass  |
+| Optimizer rules                                       | future work    |
