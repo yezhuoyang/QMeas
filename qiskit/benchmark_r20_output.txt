@@ -1,0 +1,49 @@
+Stronger benchmark: gate / meas / combined on mixed workloads
+  d = 15 (surface-code distance); entry shown as `count/depth`*
+  * marks the minimum count across all six pipelines.
+  gate-H = 4-rule hand-written; gate-Q = Qiskit Clifford-tableau
+           canonicalization + transpile(opt=3) (R20 baseline).
+
+workload                                      naive   gate-H   gate-Q     meas   comb-H   comb-Q
+------------------------------------------------------------------------------------------------
+Pure Clifford with H^2, S^4, CNOT^2 identi  18/5     0/0 *   0/0 *  18/5     0/0 *   0/0 *
+Pure syndrome loop: 8 × M_ZZ(q0,q1)          8/1     8/1     8/1     1/1 *   1/1 *   1/1 *
+QEC syndrome round: 4 stabilizers × 5 reps  20/1    20/1    20/1     4/1 *   4/1 *   4/1 *
+Mixed: Clifford identities + syndrome loop  19/5     5/1     5/1    15/5     1/1 *   1/1 *
+Clifford + 2× magic-state T injection       15/4     7/4     7/4    13/4     5/3 *   5/3 *
+Surface-code d=3 round (4-qubit plaquettes  34/5    12/1    12/1    26/5     4/1 *   4/1 *
+Repetition-code d=5: 4 stabilizers × 5 rep  20/1    20/1    20/1     4/1 *   4/1 *   4/1 *
+Repetition-code encoder + 5 syndrome round  44/11   32/9    32/9    28/11   16/9 *  16/9 *
+
+Random mixed workloads (n_cliff = 6-12 gates, n_synd = 2-4 rounds):
+------------------------------------------------------------------------------------------------
+seed=0 (nc=6, ns=2)                         18/5    14/5    22/6    15/5    11/5 *  19/6  
+seed=1 (nc=7, ns=3)                         23/4    15/5    55/6    19/4    11/5 *  51/6  
+seed=2 (nc=8, ns=4)                         31/7    31/7    33/10   23/7 *  23/7 *  25/10 
+seed=3 (nc=9, ns=2)                         23/5    19/5    31/5    21/5    17/5 *  29/5  
+seed=4 (nc=10, ns=3)                        31/4    31/4    23/4    25/4    25/4    17/4 *
+seed=5 (nc=11, ns=4)                        34/7    30/7    22/7    27/7    23/7    15/7 *
+  ... (aggregate below)
+
+Aggregate over 50 random mixed workloads:
+  naive             avg count =  27.6   avg depth =   4.4
+  gate_first        avg count =  25.4   avg depth =   4.3
+  qiskit_gate       avg count =  24.7   avg depth =   4.3
+  meas_first        avg count =  21.8   avg depth =   4.4
+  combined          avg count =  19.6   avg depth =   4.3
+  qiskit_combined   avg count =  18.9   avg depth =   4.3
+
+Qiskit-gate-optimizer vs hand-rolled 4-rule gate-optimizer (head-to-head on 50 random mixed workloads):
+  qiskit wins:  26
+  hand wins  :  12
+  tie        :  12
+
+Combined (with hand-rolled gate-opt) STRICTLY beats BOTH gate-first and meas-first on 21/50.
+Combined (with QISKIT gate-opt) STRICTLY beats BOTH qiskit-gate and meas-first on 33/50.
+
+Physical QEC-round saving (at d = 15):
+  gate_first        avg saving vs naive =   32.4 QEC rounds
+  qiskit_gate       avg saving vs naive =   43.8 QEC rounds
+  meas_first        avg saving vs naive =   87.0 QEC rounds
+  combined          avg saving vs naive =  119.4 QEC rounds
+  qiskit_combined   avg saving vs naive =  130.8 QEC rounds

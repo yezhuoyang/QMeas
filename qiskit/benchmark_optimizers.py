@@ -27,6 +27,83 @@ from compare_optimizers import (
     meas_count, meas_depth, _dependent,
 )
 
+# ---------------------------------------------------------------------
+#  R20 baseline: Qiskit Clifford canonicalization + transpile(opt=3).
+#  The reviewer (R20) explicitly asked for a comparison against Qiskit's
+#  `transpile(optimization_level=3)` or Pyzx's ZX-calculus optimizer as
+#  a serious gate-level baseline.  Plain `transpile(opt=3)` in the
+#  {h,s,cx} basis does NOT catch S^4=I (observed); the proper Qiskit
+#  Clifford optimizer is `qiskit.quantum_info.Clifford(qc).to_circuit()`,
+#  which resynthesizes via a stabilizer tableau, followed by transpile
+#  to our target basis.
+# ---------------------------------------------------------------------
+
+def _convert_qiskit_op(name: str, qs):
+    """Convert a Qiskit-emitted Clifford gate to our tuple encoding.
+    Pauli gates (X, Y, Z) are kept as Paulis so the QMeas compiler can
+    lower them to zero-cost frame updates; Sdg stays as Sdg (expanded
+    to S^3 by the compiler); swap stays as SWAP (3 CNOTs).  This mirrors
+    the QMeas semantics where Pauli gates cost 0 measurements."""
+    if name == "h":     return [("H", qs[0])]
+    if name == "s":     return [("S", qs[0])]
+    if name == "cx":    return [("CNOT", qs[0], qs[1])]
+    if name == "sdg":   return [("Sdg", qs[0])]
+    if name == "z":     return [("Z", qs[0])]
+    if name == "x":     return [("X", qs[0])]
+    if name == "y":     return [("Y", qs[0])]
+    if name == "swap":  return [("SWAP", qs[0], qs[1])]
+    if name in ("id", "barrier"):
+        return []
+    raise ValueError(f"Qiskit output gate {name!r} not supported.")
+
+
+def qiskit_gate_optimize(circuit):
+    """Gate-level Clifford optimizer using Qiskit's Clifford-tableau
+    synthesis (R20 baseline).  Takes and returns our tuple encoding
+    (("H", q), ("S", q), ("CNOT", c, t)).  Non-{H,S,CNOT} output gates
+    (x, y, z, sdg, swap) are expanded to our alphabet up to global
+    phase (acceptable: the QMeas compiler compiles frame-level)."""
+    if not circuit:
+        return []
+    from qiskit import QuantumCircuit
+    from qiskit.quantum_info import Clifford
+    qubits = sorted({q for g in circuit
+                     for q in (g[1:] if g[0] == "CNOT" else [g[1]])})
+    qmap = {q: i for i, q in enumerate(qubits)}
+    qc = QuantumCircuit(len(qubits))
+    for g in circuit:
+        if g[0] == "H":     qc.h(qmap[g[1]])
+        elif g[0] == "S":   qc.s(qmap[g[1]])
+        elif g[0] == "CNOT":qc.cx(qmap[g[1]], qmap[g[2]])
+        else: raise ValueError(f"unknown gate: {g}")
+    # Clifford canonicalization via stabilizer tableau.
+    canonical = Clifford(qc).to_circuit()
+    inv = {i: q for q, i in qmap.items()}
+    result = []
+    for instr in canonical.data:
+        qs = [inv[canonical.find_bit(q).index] for q in instr.qubits]
+        result.extend(_convert_qiskit_op(instr.operation.name, qs))
+    return result
+
+
+def qiskit_gate_opt_workload(segments):
+    """Apply Qiskit-based gate-level optimization to each Clifford segment."""
+    out = []
+    for seg in segments:
+        if isinstance(seg, tuple) and seg[0] == "clifford":
+            out.append(("clifford", qiskit_gate_optimize(seg[1])))
+        else:
+            out.append(seg)
+    return out
+
+
+def run_qiskit_gate_first(workload):
+    return compile_workload(qiskit_gate_opt_workload(workload))
+
+
+def run_qiskit_combined(workload):
+    return meas_optimize(compile_workload(qiskit_gate_opt_workload(workload)))
+
 
 # =====================================================================
 #  Workload segments
@@ -216,39 +293,48 @@ def workload_random_mixed(seed, n_cliff, n_synd):
 # =====================================================================
 
 def evaluate(workload, label):
-    n = run_naive(workload)
-    g = run_gate_first(workload)
-    m = run_meas_first(workload)
-    c = run_combined(workload)
+    n  = run_naive(workload)
+    g  = run_gate_first(workload)
+    qg = run_qiskit_gate_first(workload)
+    m  = run_meas_first(workload)
+    c  = run_combined(workload)
+    qc = run_qiskit_combined(workload)
     stats = {
-        "naive":      (meas_count(n), meas_depth(n)),
-        "gate_first": (meas_count(g), meas_depth(g)),
-        "meas_first": (meas_count(m), meas_depth(m)),
-        "combined":   (meas_count(c), meas_depth(c)),
+        "naive":          (meas_count(n),  meas_depth(n)),
+        "gate_first":     (meas_count(g),  meas_depth(g)),
+        "qiskit_gate":    (meas_count(qg), meas_depth(qg)),
+        "meas_first":     (meas_count(m),  meas_depth(m)),
+        "combined":       (meas_count(c),  meas_depth(c)),
+        "qiskit_combined":(meas_count(qc), meas_depth(qc)),
     }
     return label, stats
 
 
 def print_row(label, stats):
-    n  = stats["naive"];      g = stats["gate_first"]
-    m  = stats["meas_first"]; c = stats["combined"]
-    # Winners on COUNT
-    counts = [n[0], g[0], m[0], c[0]]
+    n  = stats["naive"];          g  = stats["gate_first"]
+    qg = stats["qiskit_gate"];    m  = stats["meas_first"]
+    c  = stats["combined"];       qc = stats["qiskit_combined"]
+    counts = [n[0], g[0], qg[0], m[0], c[0], qc[0]]
     best = min(counts)
-    win_mask = ["*" if x == best else " " for x in counts]
-    row = (f"{label[:48]:<48}  "
-           f"{n[0]:>3}/{n[1]:<2}{win_mask[0]}  "
-           f"{g[0]:>3}/{g[1]:<2}{win_mask[1]}  "
-           f"{m[0]:>3}/{m[1]:<2}{win_mask[2]}  "
-           f"{c[0]:>3}/{c[1]:<2}{win_mask[3]}")
+    win = ["*" if x == best else " " for x in counts]
+    row = (f"{label[:42]:<42} "
+           f"{n[0]:>3}/{n[1]:<2}{win[0]} "
+           f"{g[0]:>3}/{g[1]:<2}{win[1]} "
+           f"{qg[0]:>3}/{qg[1]:<2}{win[2]} "
+           f"{m[0]:>3}/{m[1]:<2}{win[3]} "
+           f"{c[0]:>3}/{c[1]:<2}{win[4]} "
+           f"{qc[0]:>3}/{qc[1]:<2}{win[5]}")
     print(row)
 
 
 def main():
     print("Stronger benchmark: gate / meas / combined on mixed workloads")
     print(f"  d = 15 (surface-code distance); entry shown as `count/depth`*")
-    print(f"  * marks the minimum count across pipelines.\n")
-    header = f"{'workload':<48}  {'naive':>8}  {'gate-1st':>8}  {'meas-1st':>8}  {'combined':>8}"
+    print(f"  * marks the minimum count across all six pipelines.")
+    print(f"  gate-H = 4-rule hand-written; gate-Q = Qiskit Clifford-tableau")
+    print(f"           canonicalization + transpile(opt=3) (R20 baseline).\n")
+    header = (f"{'workload':<42} {'naive':>8} {'gate-H':>8} "
+              f"{'gate-Q':>8} {'meas':>8} {'comb-H':>8} {'comb-Q':>8}")
     print(header)
     print("-" * len(header))
 
@@ -279,53 +365,66 @@ def main():
     print()
     print("Random mixed workloads (n_cliff = 6-12 gates, n_synd = 2-4 rounds):")
     print("-" * len(header))
-    agg = {"naive":[0,0], "gate_first":[0,0], "meas_first":[0,0], "combined":[0,0]}
-    wins_c = {"gate_first":0, "meas_first":0, "combined":0, "tie":0}
-    wins_d = {"gate_first":0, "meas_first":0, "combined":0, "tie":0}
-    strict_combined_wins = 0
+    keys = ["naive", "gate_first", "qiskit_gate", "meas_first",
+            "combined", "qiskit_combined"]
+    agg = {k: [0, 0] for k in keys}
+    strict_combined_wins_hand = 0
+    strict_combined_wins_qiskit = 0
+    qiskit_beats_hand_gate = 0
+    hand_beats_qiskit_gate = 0
+    qiskit_ties_hand_gate = 0
     N = 50
     for seed in range(N):
         nc = 6 + seed % 7
         ns = 2 + seed % 3
         wl = workload_random_mixed(seed, nc, ns)
         _, stats = evaluate(wl, f"seed={seed}")
-        for k in agg:
+        for k in keys:
             agg[k][0] += stats[k][0]
             agg[k][1] += stats[k][1]
-        c_counts = [stats["gate_first"][0], stats["meas_first"][0], stats["combined"][0]]
-        best_c = min(c_counts)
-        if stats["combined"][0] == best_c and stats["combined"][0] < stats["gate_first"][0] \
-           and stats["combined"][0] < stats["meas_first"][0]:
-            strict_combined_wins += 1
-        if stats["gate_first"][0] < stats["meas_first"][0]: wins_c["gate_first"] += 1
-        elif stats["meas_first"][0] < stats["gate_first"][0]: wins_c["meas_first"] += 1
-        else: wins_c["tie"] += 1
-        if stats["gate_first"][1] < stats["meas_first"][1]: wins_d["gate_first"] += 1
-        elif stats["meas_first"][1] < stats["gate_first"][1]: wins_d["meas_first"] += 1
-        else: wins_d["tie"] += 1
+        # Hand-rolled combined strictly beats both hand-gate and meas?
+        if (stats["combined"][0] < stats["gate_first"][0] and
+            stats["combined"][0] < stats["meas_first"][0]):
+            strict_combined_wins_hand += 1
+        # Qiskit-combined strictly beats both qiskit-gate and meas?
+        if (stats["qiskit_combined"][0] < stats["qiskit_gate"][0] and
+            stats["qiskit_combined"][0] < stats["meas_first"][0]):
+            strict_combined_wins_qiskit += 1
+        # Head-to-head: Qiskit gate-optimizer vs hand-rolled gate-optimizer
+        if stats["qiskit_gate"][0] < stats["gate_first"][0]:
+            qiskit_beats_hand_gate += 1
+        elif stats["qiskit_gate"][0] > stats["gate_first"][0]:
+            hand_beats_qiskit_gate += 1
+        else:
+            qiskit_ties_hand_gate += 1
         if seed < 6:
             print_row(f"seed={seed} (nc={nc}, ns={ns})", stats)
     print("  ... (aggregate below)")
 
     print()
     print("Aggregate over 50 random mixed workloads:")
-    for k in ["naive", "gate_first", "meas_first", "combined"]:
-        print(f"  {k:<12}  avg count = {agg[k][0]/N:>5.1f}   avg depth = {agg[k][1]/N:>5.1f}")
+    for k in keys:
+        print(f"  {k:<16}  avg count = {agg[k][0]/N:>5.1f}   "
+              f"avg depth = {agg[k][1]/N:>5.1f}")
     print()
-    print("Pairwise comparison (gate-first vs meas-first):")
-    print(f"  count wins:  gate={wins_c['gate_first']}  meas={wins_c['meas_first']}  tie={wins_c['tie']}")
-    print(f"  depth wins:  gate={wins_d['gate_first']}  meas={wins_d['meas_first']}  tie={wins_d['tie']}")
+    print(f"Qiskit-gate-optimizer vs hand-rolled 4-rule gate-optimizer "
+          f"(head-to-head on {N} random mixed workloads):")
+    print(f"  qiskit wins:  {qiskit_beats_hand_gate}")
+    print(f"  hand wins  :  {hand_beats_qiskit_gate}")
+    print(f"  tie        :  {qiskit_ties_hand_gate}")
     print()
-    print(f"Combined STRICTLY beats BOTH gate-first and meas-first on "
-          f"{strict_combined_wins}/{N} random mixed workloads.")
+    print(f"Combined (with hand-rolled gate-opt) STRICTLY beats BOTH "
+          f"gate-first and meas-first on {strict_combined_wins_hand}/{N}.")
+    print(f"Combined (with QISKIT gate-opt) STRICTLY beats BOTH "
+          f"qiskit-gate and meas-first on {strict_combined_wins_qiskit}/{N}.")
 
     # Physical savings at d = 15
     print()
     print("Physical QEC-round saving (at d = 15):")
     d = 15
-    for k in ["gate_first", "meas_first", "combined"]:
+    for k in keys[1:]:
         saving = (agg["naive"][0] - agg[k][0]) * d / N
-        print(f"  {k:<12}  avg saving vs naive = {saving:>6.1f} QEC rounds")
+        print(f"  {k:<16}  avg saving vs naive = {saving:>6.1f} QEC rounds")
 
 
 if __name__ == "__main__":

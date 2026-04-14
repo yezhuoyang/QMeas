@@ -90,7 +90,8 @@ def compile_clifford(circuit):
     counter = 100
     def fresh():
         nonlocal counter; counter += 1; return f"_a{counter}"
-    all_q = {x for g in circuit for x in g[1:]}
+    all_q = {x for g in circuit for x in g[1:] if not isinstance(x, int)}
+    # CNOT may pass int positions (n/a here); filter to strings.
     live = {q: q for q in all_q}
     for g in circuit:
         op = g[0]
@@ -107,6 +108,25 @@ def compile_clifford(circuit):
             cur_c, cur_t = live[c], live[t]
             a = fresh(); r1 = fresh(); r2 = fresh(); r3 = fresh()
             prog += gadget_CNOT(cur_c, cur_t, a, r1, r2, r3)
+        elif op in ("X", "Y", "Z"):
+            # Pauli gate in QMeas = pure frame update, zero measurements.
+            q = g[1]
+            prog.append(Frame(op, live[q]))
+        elif op == "Sdg":
+            # S^3 via three S-gadgets.  Chained fresh outputs.
+            q = g[1]; cur = live[q]
+            for _ in range(3):
+                a = fresh(); r1 = fresh(); r2 = fresh()
+                prog += gadget_S(cur, a, r1, r2); cur = a
+            live[q] = cur
+        elif op == "SWAP":
+            c, t = g[1], g[2]
+            for a0, a1 in [(c, t), (t, c), (c, t)]:
+                cur_c, cur_t = live[a0], live[a1]
+                a = fresh(); r1 = fresh(); r2 = fresh(); r3 = fresh()
+                prog += gadget_CNOT(cur_c, cur_t, a, r1, r2, r3)
+        else:
+            raise ValueError(f"compile_clifford: unknown op {op!r}")
     return prog
 
 
