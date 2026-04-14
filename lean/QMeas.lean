@@ -16,3 +16,4 @@ import QMeas.Completeness
 import QMeas.Optimization
 import QMeas.Cost
 import QMeas.CliffordPush
+import QMeas.ComposeSound
