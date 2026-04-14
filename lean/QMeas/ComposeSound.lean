@@ -245,43 +245,27 @@ noncomputable def composeSoundWitness {c₁ c₂ : Cliff1}
     Frame.mulOpt (pushCliffordOpt c₂ (w₁.corr ψ)) (w₂.corr (w₁.out ψ))
   out   := fun ψ => w₂.out (w₁.out ψ)
   valid := by
-    -- The single `sorry` in this file.  Its closure requires a
-    -- `Frame.optPauliMat_mulOpt` lemma that states, with explicit phase,
-    --   (Pauli-cocycle phase)(A, B) • Frame.optPauliMat (Frame.mulOpt A B)
-    --     = Frame.optPauliMat A * Frame.optPauliMat B
-    -- which is the Pauli-group-cocycle identity.  Combined with
-    -- `pushCliffordOpt_commute` on the pushed correction of `w₁`, the
-    -- chain is:
-    --   denote (seq c₁ c₂) *ᵥ ψ
-    -- = denote c₂ *ᵥ (denote c₁ *ᵥ ψ)
-    -- = denote c₂ *ᵥ (w₁.phase ψ • (optPauliMat (w₁.corr ψ) *ᵥ w₁.out ψ))  [by w₁.valid]
-    -- = w₁.phase ψ • ((denote c₂ * optPauliMat (w₁.corr ψ)) *ᵥ w₁.out ψ)    [linearity]
-    -- = w₁.phase ψ • (pushSignOpt c₂ (w₁.corr ψ) •
-    --     ((optPauliMat (pushCliffordOpt c₂ (w₁.corr ψ)) * denote c₂) *ᵥ w₁.out ψ))
-    --                                                       [by pushCliffordOpt_commute]
-    -- = w₁.phase ψ • pushSignOpt c₂ (w₁.corr ψ) •
-    --     (optPauliMat (pushCliffordOpt c₂ (w₁.corr ψ)) *ᵥ (denote c₂ *ᵥ w₁.out ψ))
-    -- = w₁.phase ψ • pushSignOpt c₂ (w₁.corr ψ) •
-    --     (optPauliMat (pushCliffordOpt c₂ (w₁.corr ψ)) *ᵥ
-    --        (w₂.phase (w₁.out ψ) • (optPauliMat (w₂.corr (w₁.out ψ)) *ᵥ w₂.out (w₁.out ψ))))
-    --                                                       [by w₂.valid at w₁.out ψ]
-    -- = (w₂.phase (w₁.out ψ) * pushSignOpt c₂ (w₁.corr ψ) * w₁.phase ψ) •
-    --     ((optPauliMat (pushCliffordOpt c₂ (w₁.corr ψ)) * optPauliMat (w₂.corr (w₁.out ψ)))
-    --       *ᵥ w₂.out (w₁.out ψ))
-    -- The algebraic chain combining h1, h2, hcomm, hcocycle, and Matrix
-    -- mul-vec associativity + scalar/mul-vec commutativity is fully
-    -- determined and is worked out in detail in the header comment.
-    -- All FOUR required ingredients (h1, h2, hcomm, hcocycle) are now
-    -- PROVED in this file; the remaining gap is the mechanical
-    -- book-keeping chain that turns them into the final equation.
-    -- Mathlib's `Matrix.mulVec_mulVec`, `Matrix.mulVec_smul`,
-    -- `Matrix.smul_mulVec_assoc`, and `mul_smul` / `smul_smul` / `ring`
-    -- carry out the book-keeping; in Lean the precise term is brittle
-    -- to write without tactic support and is left as this single
-    -- `sorry` (down from several structural gaps pre-e314877 and the
-    -- prior vacuous existential).  The scientific content — the four
-    -- ingredient lemmas — is all now mechanized.
-    sorry
+    intro ψ
+    -- QMeas's `*ᵥ` is `applyOp`, not Mathlib's `Matrix.mulVec`.  The two
+    -- are definitionally equal but syntactically distinct, so we re-state
+    -- Mathlib's lemmas at QMeas's `*ᵥ` to make `rw` pattern-match succeed.
+    have mvmv : ∀ (M N : Op 2) (v : Vec 2), M *ᵥ N *ᵥ v = (M * N) *ᵥ v :=
+      fun M N v => Matrix.mulVec_mulVec v M N
+    have mvsmul : ∀ (M : Op 2) (b : ℂ) (v : Vec 2), M *ᵥ (b • v) = b • M *ᵥ v :=
+      fun M b v => Matrix.mulVec_smul M b v
+    have smulmv : ∀ (b : ℂ) (M : Op 2) (v : Vec 2), (b • M) *ᵥ v = b • M *ᵥ v :=
+      fun b M v => Matrix.smul_mulVec b M v
+    have h1 := w₁.valid ψ
+    have h2 := w₂.valid (w₁.out ψ)
+    have hcomm := pushCliffordOpt_commute c₂ (w₁.corr ψ)
+    have hcocycle := optPauliMat_mulOpt
+      (pushCliffordOpt c₂ (w₁.corr ψ)) (w₂.corr (w₁.out ψ))
+    show _ = (Cliff1.denote c₂ * Cliff1.denote c₁) *ᵥ ψ
+    rw [← mvmv, ← h1, mvsmul, mvmv, hcomm, smulmv,
+        ← mvmv, ← h2, mvsmul, mvmv, hcocycle, smulmv,
+        smul_smul, smul_smul, smul_smul]
+    congr 1
+    ring
 
 /-- **Compose-soundness (R14):** sound circuits compose.  Witness is
     constructed by `composeSoundWitness` above. -/
