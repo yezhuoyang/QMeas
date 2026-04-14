@@ -15,3 +15,4 @@ import QMeas.Soundness
 import QMeas.Completeness
 import QMeas.Optimization
 import QMeas.Cost
+import QMeas.CliffordPush
