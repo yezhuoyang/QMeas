@@ -14,6 +14,7 @@ post-measurement state.
 -/
 import QMeas.Syntax
 import QMeas.QState
+import QMeas.Frame
 
 namespace QMeas
 
@@ -36,9 +37,14 @@ structure Config (D : Nat) where
 def Store.set (σ : Store) (k : Nat) (v : Int) : Store :=
   fun k' => if k' = k then some v else σ k'
 
-/-- Update a frame at a single key. -/
+/-- Compose a Pauli into the frame at a single key.
+    Previously this was an overwrite; the corrected behaviour multiplies
+    the existing frame by `P` using `Frame.mulOpt` from `QMeas.Frame`,
+    so two successive `frame_X(q); frame_Z(q)` correctly compose to `Y`
+    (in the projective Pauli group), not to `Z`.
+    Reviewer comment R10 in `notes/reviewer_plan.md`. -/
 def Frame.set (F : Frame) (k : Nat) (P : Pauli1) : Frame :=
-  fun k' => if k' = k then some P else F k'
+  fun k' => if k' = k then Frame.mulOpt (F k') (some P) else F k'
 
 /-- Empty store. -/
 def Store.empty : Store := fun _ => none
