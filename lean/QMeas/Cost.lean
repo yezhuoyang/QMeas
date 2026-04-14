@@ -32,6 +32,7 @@ def measCount : Stmt → Nat
   | .ifPos _ s₁ s₂     => max (measCount s₁) (measCount s₂)
   | .forLoop _ N body  => N * measCount body
   | .discard _         => 0
+  | .abort             => 0
 
 /-- Example concrete sequence: two identical `M_ZZ(q0, q1)` measurements. -/
 def dupSyndrome : Stmt :=

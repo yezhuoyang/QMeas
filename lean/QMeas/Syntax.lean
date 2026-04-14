@@ -39,6 +39,11 @@ inductive Stmt where
   | forLoop (i : Nat) (N : Nat) (body : Stmt) : Stmt
   /-- Discard a quantum register from the live set. -/
   | discard (q : Nat) : Stmt
+  /-- `abort` — stuck terminal used for post-selection (e.g.\ in cultivation).
+      No reduction rule fires on `abort`; multi-step reductions starting from
+      the initial configuration partition into "accepted" (end in `skip`) and
+      "rejected" (end in `abort`).  See `theory.tex` §Post-selection via abort. -/
+  | abort : Stmt
   deriving Repr
 
 /-- A QMeas program is just a top-level statement. -/
