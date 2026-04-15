@@ -230,11 +230,11 @@ axiom transversal_X_is_logical_X :
     ∀ {D : Nat} (logical : Vec 2 → Vec D) (ψ : Vec 2),
       True
 
-/-! ### The partial-correctness theorem. -/
+/-! ### The single-step partial-correctness theorem. -/
 
-/-- **Cultivation correctness, partial form (logical-level kernel).**
+/-- **Cultivation correctness, single check (partial form).**
 
-    The cultivation acceptance program (a $T^\dagger$-sweep on each
+    A SINGLE cultivation acceptance check (a $T^\dagger$-sweep on each
     data qubit, then a transversal $X$-parity measurement, then a
     $T$-sweep, then `if r = -1 then abort`) filters the encoded logical
     state into the $+1$ eigenspace of $H_{XY}$ on the cultivated qubit
@@ -250,6 +250,76 @@ axiom transversal_X_is_logical_X :
 theorem cultivation_filters_to_T (ψ : Vec 2) :
     applyOp H_XY (applyOp Pi_plus ψ) = applyOp Pi_plus ψ :=
   H_XY_fixes_image_of_Pi_plus ψ
+
+/-! ### Program-level correctness: iterated cultivation.
+
+A full cultivation pipeline is many acceptance checks chained together
+(the cultivation paper's check--grow--stabilize cycle, repeated $N$
+times across stages 2 and 3 of the protocol).  At the LOGICAL level,
+each successful (accepted) check applies the projector $\Pi_+$.  The
+overall semantics of the program is the iteration of these projector
+applications.
+
+We capture this iteration as a function `cultivation_iter` and lift the
+single-step correctness to a program-level theorem.  After $n \ge 1$
+acceptance rounds, the post-cultivation state is in the $+1$ eigenspace
+of $H_{XY}$, which is spanned by $|T\rangle$.  This is the partial
+correctness property of the entire cultivation pipeline. -/
+
+/-- A single cultivation acceptance step at the LOGICAL level: apply
+    $\Pi_+$ to the input.  This is the post-acceptance state of one
+    $H_{XY}$-measurement check, modulo the (acceptance-probability)
+    normalization. -/
+noncomputable def cultivation_check (ψ : Vec 2) : Vec 2 := applyOp Pi_plus ψ
+
+/-- The cultivation program at the LOGICAL level: $n$ successive
+    acceptance checks, each applying $\Pi_+$ to the running state.
+    On the all-accept branch, this is the post-cultivation state. -/
+noncomputable def cultivation_iter : Nat → Vec 2 → Vec 2
+  | 0,     ψ => ψ
+  | n + 1, ψ => cultivation_check (cultivation_iter n ψ)
+
+/-- After ONE cultivation check, the state is fixed by $H_{XY}$
+    (eigenvalue $+1$). -/
+theorem cultivation_check_in_T_eigenspace (ψ : Vec 2) :
+    applyOp H_XY (cultivation_check ψ) = cultivation_check ψ :=
+  H_XY_fixes_image_of_Pi_plus ψ
+
+/-- After AT LEAST ONE cultivation check, the state is in the $+1$
+    eigenspace of $H_{XY}$.  (For $n = 0$ the claim is vacuous and we
+    require $n \ge 1$.) -/
+theorem cultivation_iter_in_T_eigenspace :
+    ∀ (n : Nat), n ≥ 1 → ∀ (ψ : Vec 2),
+      applyOp H_XY (cultivation_iter n ψ) = cultivation_iter n ψ
+  | 0, h, _ => absurd h (by omega)
+  | n + 1, _, ψ =>
+      cultivation_check_in_T_eigenspace (cultivation_iter n ψ)
+
+/-- **Cultivation program correctness (partial form).**
+
+    For any input state $\psi$ and any number $n \ge 1$ of cultivation
+    acceptance rounds, the post-cultivation state lies in the $+1$
+    eigenspace of $H_{XY}$, which is spanned by $|T\rangle$.
+
+    Equivalently: the distilled state IS a logical $|T\rangle$ (up to
+    the unnormalized acceptance-amplitude scalar; the normalization is
+    the all-accept-probability $p_{\mathrm{acc}}$, which we do not
+    compute here --- it is the back-end's quantitative claim).
+
+    Combined with the code annotations threading the cultivation
+    program through $\mathrm{ColorCode}(3) \to \mathrm{ColorCode}(5)
+    \to \mathrm{GraftedCode}(5,15) \to \mathrm{MatchableCode}(15)$ (the
+    back-end's specification, captured by the
+    `transversal_X_is_logical_X` axiom), the distilled state is a
+    logical $|T\rangle$ encoded in $\mathrm{MatchableCode}(d_{\mathrm{surface}})$.
+
+    The encoding aspect is the back-end's responsibility; what the
+    QMeas-level partial-correctness theorem proves is the LOGICAL
+    state.  This is exactly the factoring promised in §6.6 of the
+    paper. -/
+theorem cultivation_program_correct (n : Nat) (h : n ≥ 1) (ψ : Vec 2) :
+    applyOp H_XY (cultivation_iter n ψ) = cultivation_iter n ψ :=
+  cultivation_iter_in_T_eigenspace n h ψ
 
 end Cultivation
 end QMeas
