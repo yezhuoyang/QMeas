@@ -17,3 +17,5 @@ import QMeas.Cost
 import QMeas.CliffordPush
 import QMeas.ComposeSound
 import QMeas.Cultivation
+import QMeas.Gadgets.T
+import QMeas.Gadgets.CCZ

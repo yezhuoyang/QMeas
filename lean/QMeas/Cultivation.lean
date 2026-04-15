@@ -107,6 +107,19 @@ theorem omega_mul_omega : omega * omega = Complex.I := by
     linear_combination this
   rw [h]; field_simp
 
+/-- $i\omega + \overline\omega = 0$ (equivalently $i\omega = -\overline\omega$).
+
+    A useful complex-arithmetic identity for the T-gadget proofs. -/
+theorem I_omega_plus_omega_conj :
+    Complex.I * omega + (starRingEnd ℂ omega) = 0 := by
+  unfold omega
+  rw [map_div₀, map_add, map_one, Complex.conj_I, Complex.conj_ofReal]
+  rw [show Complex.I * ((1 + Complex.I) / (Real.sqrt 2 : ℂ)) +
+        (1 + -Complex.I) / (Real.sqrt 2 : ℂ) =
+      ((Complex.I * Complex.I + 1) / (Real.sqrt 2 : ℂ)) by ring]
+  rw [Complex.I_mul_I]
+  norm_num
+
 /-- $\omega \cdot \overline\omega = 1$.  ($|\omega| = 1$.) -/
 theorem omega_mul_conj :
     omega * (starRingEnd ℂ omega) = 1 := by
