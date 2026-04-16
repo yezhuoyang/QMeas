@@ -36,7 +36,7 @@ The template emits the QMeas program from §QMeas examples in the paper. -/
      if r1 = -1 frame_Z(a); if r2 = -1 frame_X(a); discard q`. -/
 def gadgetH (q a r1 r2 : Nat) : Stmt :=
   Stmt.chain
-    [ .meas2 r1 .ZX q a
+    [ .meas2 r1 [.Z, .X] q a
     , .meas1 r2 .X q
     , .ifPos r1 .skip (.frame .Z a)
     , .ifPos r2 .skip (.frame .X a)
@@ -47,7 +47,7 @@ def gadgetH (q a r1 r2 : Nat) : Stmt :=
     update derived in `Gadgets/S.lean`. -/
 def gadgetS (q a r1 r2 : Nat) : Stmt :=
   Stmt.chain
-    [ .meas2 r1 .ZZ q a
+    [ .meas2 r1 [.Z, .Z] q a
     , .meas1 r2 .Y q
     -- (+1, +1) → frame_Z(a)
     , .ifPos r1 (.ifPos r2 (.frame .Z a) .skip) .skip
@@ -62,8 +62,8 @@ def gadgetS (q a r1 r2 : Nat) : Stmt :=
      if r2 = -1 frame_Z(c); if r1 ≠ r3 frame_X(t); discard a`. -/
 def gadgetCNOT (c t a r1 r2 r3 : Nat) : Stmt :=
   Stmt.chain
-    [ .meas2 r1 .ZZ c a
-    , .meas2 r2 .XX a t
+    [ .meas2 r1 [.Z, .Z] c a
+    , .meas2 r2 [.X, .X] a t
     , .meas1 r3 .Z a
     , .ifPos r2 .skip (.frame .Z c)
     -- if r1 ≠ r3 then frame_X(t)

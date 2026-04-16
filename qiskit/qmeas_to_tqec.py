@@ -95,6 +95,197 @@ def qmeas_cnot_blockgraph() -> BlockGraph:
 
 
 # ---------------------------------------------------------------------
+#  QMeas → BlockGraph: H gadget
+# ---------------------------------------------------------------------
+
+def qmeas_h_blockgraph() -> BlockGraph:
+    """Construct the TQEC BlockGraph for the QMeas Hadamard gadget:
+
+        ancilla a in |0⟩
+        r1 := M_ZX(q, a)
+        r2 := M_X(q)
+        if r1=-1: frame_Z(a); if r2=-1: frame_X(a)
+        discard q; output on a
+
+    Layout: q at (x=0,y=0), ancilla a at (x=1,y=0), time along z.
+    M_ZX is a spatial pipe at t=1 with Z-boundary on the q side and
+    X-boundary on the a side; in TQEC this is realized as a pipe between
+    a ZXZ-kind and a ZXX-kind cube.
+    """
+    g = BlockGraph("QMeas H gadget")
+    cubes = [
+        (Position3D(0, 0, 0), "P",   "In"),         # q input
+        (Position3D(0, 0, 1), "ZXZ", ""),            # q at t=1 (Z-boundary side of M_ZX)
+        (Position3D(1, 0, 0), "ZXZ", ""),            # a init |0⟩ at t=0
+        (Position3D(1, 0, 1), "ZXX", ""),            # a at t=1 (X-boundary side of M_ZX)
+        (Position3D(1, 0, 2), "P",   "Out"),         # a output
+    ]
+    for pos, kind, label in cubes:
+        g.add_cube(pos, kind, label)
+    pipe_pairs = [
+        (0, 1),     # q temporal: t=0 → t=1
+        (1, 3),     # spatial M_ZX: q(t=1) ↔ a(t=1)
+        (2, 3),     # a temporal: t=0 → t=1
+        (3, 4),     # a temporal: t=1 → t=2 (output)
+    ]
+    for u, v in pipe_pairs:
+        g.add_pipe(cubes[u][0], cubes[v][0])
+    return g
+
+
+# ---------------------------------------------------------------------
+#  QMeas → BlockGraph: S gadget
+# ---------------------------------------------------------------------
+
+def qmeas_s_blockgraph() -> BlockGraph:
+    """Construct the TQEC BlockGraph for the QMeas S (phase) gadget:
+
+        ancilla a in |+⟩
+        r1 := M_ZZ(q, a)
+        r2 := M_Y(q)
+        conditional frame; discard q; output on a
+
+    Note: M_Y measurement is realized in surface-code lattice surgery by
+    applying an S-gate rotation to the patch (changing its boundary type)
+    before a Z-basis readout.  At the BlockGraph level we represent this
+    as a cube terminated with ZXZ kind (Z-basis readout) preceded by a
+    boundary-type change.  This is an approximate representation; the
+    exact TQEC encoding of Y-basis measurement depends on the back-end's
+    rotation support.
+    """
+    g = BlockGraph("QMeas S gadget")
+    cubes = [
+        (Position3D(0, 0, 0), "P",   "In"),         # q input
+        (Position3D(0, 0, 1), "ZXZ", ""),            # q at t=1 (Z-side of M_ZZ)
+        (Position3D(0, 0, 2), "ZXZ", ""),            # q at t=2 (M_Y readout)
+        (Position3D(1, 0, 0), "ZXX", ""),            # a init |+⟩
+        (Position3D(1, 0, 1), "ZXZ", ""),            # a at t=1 (Z-side of M_ZZ)
+        (Position3D(1, 0, 2), "P",   "Out"),         # a output
+    ]
+    for pos, kind, label in cubes:
+        g.add_cube(pos, kind, label)
+    pipe_pairs = [
+        (0, 1),     # q temporal
+        (1, 2),     # q temporal (then M_Y readout)
+        (1, 4),     # spatial M_ZZ: q(t=1) ↔ a(t=1)
+        (3, 4),     # a temporal
+        (4, 5),     # a temporal → output
+    ]
+    for u, v in pipe_pairs:
+        g.add_pipe(cubes[u][0], cubes[v][0])
+    return g
+
+
+# ---------------------------------------------------------------------
+#  QMeas → BlockGraph: T gadget
+# ---------------------------------------------------------------------
+
+def qmeas_t_blockgraph() -> BlockGraph:
+    """Construct the TQEC BlockGraph for the QMeas T gadget:
+
+        ancilla m holds |A⟩ (magic state, injected externally)
+        r1 := M_ZZ(q, m)
+        r2 := M_X(q)
+        conditional S-gadget on m; discard q; output on m
+
+    The conditional S-gadget (for r1=-1 branches) is appended as
+    additional time steps after the M_X readout.  The magic state
+    |A⟩ is modeled as a port (injected by the factory).
+    """
+    g = BlockGraph("QMeas T gadget")
+    cubes = [
+        (Position3D(0, 0, 0), "P",   "In"),         # q input
+        (Position3D(0, 0, 1), "ZXZ", ""),            # q at t=1 (Z-side of M_ZZ)
+        (Position3D(0, 0, 2), "ZXX", ""),            # q at t=2 (M_X readout)
+        (Position3D(1, 0, 0), "P",   "MagicState"),  # m: |A⟩ injected
+        (Position3D(1, 0, 1), "ZXZ", ""),            # m at t=1
+        (Position3D(1, 0, 2), "ZXZ", ""),            # m at t=2
+        (Position3D(1, 0, 3), "P",   "Out"),         # m output
+    ]
+    for pos, kind, label in cubes:
+        g.add_cube(pos, kind, label)
+    pipe_pairs = [
+        (0, 1),     # q temporal
+        (1, 2),     # q temporal → M_X
+        (1, 4),     # spatial M_ZZ: q(t=1) ↔ m(t=1)
+        (3, 4),     # m temporal
+        (4, 5),     # m temporal
+        (5, 6),     # m temporal → output
+    ]
+    for u, v in pipe_pairs:
+        g.add_pipe(cubes[u][0], cubes[v][0])
+    return g
+
+
+# ---------------------------------------------------------------------
+#  QMeas → BlockGraph: CCZ gadget
+# ---------------------------------------------------------------------
+
+def qmeas_ccz_blockgraph() -> BlockGraph:
+    """Construct the TQEC BlockGraph for the QMeas CCZ gadget:
+
+        ancilla m1, m2, m3 hold |CCZ⟩ (3-qubit magic state)
+        r1 := M_ZZ(q1, m1); r2 := M_ZZ(q2, m2); r3 := M_ZZ(q3, m3)
+        r4 := M_X(q1); r5 := M_X(q2); r6 := M_X(q3)
+        Clifford byproduct; discard q1,q2,q3; output on m1,m2,m3
+
+    Layout: 6 qubits in a 2-row arrangement.
+    Row y=0: q1(x=0), q2(x=1), q3(x=2)
+    Row y=1: m1(x=0), m2(x=1), m3(x=2)
+    Time: t=0 init, t=1 M_ZZ layer, t=2 M_X layer, t=3 output.
+    """
+    g = BlockGraph("QMeas CCZ gadget")
+    cubes = [
+        # q1, q2, q3 (data qubits)
+        (Position3D(0, 0, 0), "P",   "In_q1"),
+        (Position3D(0, 0, 1), "ZXZ", ""),
+        (Position3D(0, 0, 2), "ZXX", ""),       # M_X(q1)
+        (Position3D(1, 0, 0), "P",   "In_q2"),
+        (Position3D(1, 0, 1), "ZXZ", ""),
+        (Position3D(1, 0, 2), "ZXX", ""),       # M_X(q2)
+        (Position3D(2, 0, 0), "P",   "In_q3"),
+        (Position3D(2, 0, 1), "ZXZ", ""),
+        (Position3D(2, 0, 2), "ZXX", ""),       # M_X(q3)
+        # m1, m2, m3 (ancilla/magic state qubits)
+        (Position3D(0, 1, 0), "P",   "MagicState_m1"),
+        (Position3D(0, 1, 1), "ZXZ", ""),
+        (Position3D(0, 1, 2), "ZXZ", ""),
+        (Position3D(0, 1, 3), "P",   "Out_m1"),
+        (Position3D(1, 1, 0), "P",   "MagicState_m2"),
+        (Position3D(1, 1, 1), "ZXZ", ""),
+        (Position3D(1, 1, 2), "ZXZ", ""),
+        (Position3D(1, 1, 3), "P",   "Out_m2"),
+        (Position3D(2, 1, 0), "P",   "MagicState_m3"),
+        (Position3D(2, 1, 1), "ZXZ", ""),
+        (Position3D(2, 1, 2), "ZXZ", ""),
+        (Position3D(2, 1, 3), "P",   "Out_m3"),
+    ]
+    for pos, kind, label in cubes:
+        g.add_cube(pos, kind, label)
+    pipe_pairs = [
+        # q1 chain
+        (0, 1), (1, 2),
+        # q2 chain
+        (3, 4), (4, 5),
+        # q3 chain
+        (6, 7), (7, 8),
+        # m1 chain
+        (9, 10), (10, 11), (11, 12),
+        # m2 chain
+        (13, 14), (14, 15), (15, 16),
+        # m3 chain
+        (17, 18), (18, 19), (19, 20),
+        # Spatial M_ZZ pipes at t=1
+        (1, 10),    # M_ZZ(q1, m1)
+        (4, 14),    # M_ZZ(q2, m2)
+        (7, 18),    # M_ZZ(q3, m3)
+    ]
+    for u, v in pipe_pairs:
+        g.add_pipe(cubes[u][0], cubes[v][0])
+    return g
+
+
+# ---------------------------------------------------------------------
 #  Verification: our BlockGraph is isomorphic to TQEC's gallery cnot()
 # ---------------------------------------------------------------------
 

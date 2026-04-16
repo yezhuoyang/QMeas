@@ -36,14 +36,14 @@ def measCount : Stmt → Nat
 
 /-- Example concrete sequence: two identical `M_ZZ(q0, q1)` measurements. -/
 def dupSyndrome : Stmt :=
-  Stmt.chain [ .meas2 1001 .ZZ 0 1, .meas2 1002 .ZZ 0 1 ]
+  Stmt.chain [ .meas2 1001 [.Z, .Z] 0 1, .meas2 1002 [.Z, .Z] 0 1 ]
 
 /-- After the meas-level rewrite R1 (duplicate-measurement collapse),
     the second measurement becomes a classical assignment (represented
     here as a no-op `skip` since we track only physical measurement
     count). -/
 def dupSyndrome_opt : Stmt :=
-  Stmt.chain [ .meas2 1001 .ZZ 0 1 ]
+  Stmt.chain [ .meas2 1001 [.Z, .Z] 0 1 ]
 
 theorem measCount_dupSyndrome : measCount dupSyndrome = 2 := by
   -- two measurements, no other contributors

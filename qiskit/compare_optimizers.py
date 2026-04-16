@@ -217,64 +217,26 @@ def meas_optimize(prog, use_stabilizer_tracking: bool = True):
 
 
 def _r7_stabilizer_derivation(prog):
-    """Run the program through a symbolic stabilizer simulator; any measurement
-    whose observable is already in the stabilizer group (or its negation) is
-    deterministic — drop it (replacing bit with a derived classical value).
-
-    A full implementation would track a stabilizer tableau; we use a simple
-    string-level heuristic that catches the common cases of:
-      - two adjacent identical measurements on the same qubits (also covered by R1)
-      - a measurement whose Pauli string matches any earlier measurement's string
-        on the SAME qubits AND no intervening measurement anticommutes with it.
-    """
+    """Run the program through an Aaronson-Gottesman stabilizer tableau
+    (R19: replaces the old string-level heuristic).  Any measurement
+    whose observable is already in the stabilizer group is deterministic
+    and can be dropped."""
+    from stabilizer_tableau import StabilizerTableau
+    tab = StabilizerTableau()
     out = []
-    history = []  # list of (Pauli_string, qubits) seen since last "anticommuting" disturbance
     for op in prog:
         if isinstance(op, Meas):
-            # Check if this measurement's observable is already known.
-            known = False
-            for (hp, hq) in reversed(history):
-                if hp == op.pauli and hq == op.qubits:
-                    known = True
-                    break
-                # If some later measurement shares a qubit with anticommuting Pauli,
-                # the earlier stabilizer is destroyed.  Walk back stops on first
-                # anticommuting overlap.
-                if _pauli_anticommute_overlap(hp, hq, op.pauli, op.qubits):
-                    break
-            if known:
-                # Drop the measurement; its outcome is determined.
+            determined, _outcome = tab.is_determined(op.pauli, op.qubits)
+            if determined:
                 continue
-            # Check disturbance: does this measurement anticommute with any
-            # previous stabilizer on overlapping qubits?  If so, history is stale;
-            # we append this one and clear earlier entries with anticommuting overlap.
-            new_hist = []
-            for (hp, hq) in history:
-                if not _pauli_anticommute_overlap(hp, hq, op.pauli, op.qubits):
-                    new_hist.append((hp, hq))
-            new_hist.append((op.pauli, op.qubits))
-            history = new_hist
+            tab.measure(op.pauli, op.qubits)
             out.append(op)
         elif isinstance(op, Discard):
-            # Discarding a qubit invalidates stabilizers that touch it.
-            history = [(hp, hq) for (hp, hq) in history if op.qubit not in hq]
+            tab.discard(op.qubit)
             out.append(op)
         else:
             out.append(op)
     return out
-
-
-def _pauli_anticommute_overlap(p1, q1, p2, q2):
-    """Return True iff the two Pauli strings anticommute (odd number of
-    anticommuting positions on their shared support)."""
-    overlap = set(q1) & set(q2)
-    if not overlap: return False
-    count = 0
-    for q in overlap:
-        a = p1[q1.index(q)]; b = p2[q2.index(q)]
-        if a != "I" and b != "I" and a != b:
-            count += 1
-    return count % 2 == 1
 
 
 # =====================================================================

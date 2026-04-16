@@ -59,13 +59,10 @@ noncomputable def postMeas1At1 (P : Pauli1) (s : Int) (ρ : Vec 2) : Vec 2 :=
 
 /-- Apply the s-eigenspace projector of a two-qubit Pauli `P` to a
     2-qubit state.  This is the basis case of `postMeas2`. -/
-noncomputable def postMeas2At2 (P : Pauli2) (s : Int) (ρ : Vec 4) : Vec 4 :=
+noncomputable def postMeas2At2 (P : List Pauli1) (s : Int) (ρ : Vec 4) : Vec 4 :=
   let mat : Op 4 := match P with
-    | .XX => kron2 σX σX  | .ZZ => kron2 σZ σZ
-    | .XZ => kron2 σX σZ  | .ZX => kron2 σZ σX
-    | .YZ => kron2 σY σZ  | .ZY => kron2 σZ σY
-    | .YX => kron2 σY σX  | .XY => kron2 σX σY
-    | .YY => kron2 σY σY
+    | [p1, p2] => kron2 (Frame.pauliMat p1) (Frame.pauliMat p2)
+    | _        => 1
   applyOp (projector mat s) ρ
 
 /-- Post-measurement state for a single-qubit Pauli measurement on register
@@ -81,7 +78,7 @@ noncomputable def postMeas1 {D : Nat} (P : Pauli1) (_q : Nat) (s : Int)
     (the two-qubit system that the measurement targets) this is the real
     projection; for `D > 4` we leave `ρ` unchanged as an explicit
     placeholder pending a Kronecker tensor lift. -/
-noncomputable def postMeas2 {D : Nat} (P : Pauli2) (_qa _qb : Nat)
+noncomputable def postMeas2 {D : Nat} (P : List Pauli1) (_qa _qb : Nat)
     (s : Int) (ρ : Vec D) : Vec D :=
   if h : D = 4 then by subst h; exact postMeas2At2 P s ρ
   else ρ
@@ -102,7 +99,7 @@ inductive Step {D : Nat} : Config D → Obs → Config D → Prop where
       Step ⟨ρ, σ, F, .meas1 r P q⟩ (.meas s)
            ⟨postMeas1 P q s ρ, Store.set σ r s, F, .skip⟩
   /-- Two-qubit measurement. -/
-  | meas2 (ρ : Vec D) (σ : Store) (F : Frame) (r : Nat) (P : Pauli2)
+  | meas2 (ρ : Vec D) (σ : Store) (F : Frame) (r : Nat) (P : List Pauli1)
       (qa qb : Nat) (s : Int) (hs : s = 1 ∨ s = -1) :
       Step ⟨ρ, σ, F, .meas2 r P qa qb⟩ (.meas s)
            ⟨postMeas2 P qa qb s ρ, Store.set σ r s, F, .skip⟩

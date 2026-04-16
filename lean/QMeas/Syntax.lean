@@ -16,10 +16,6 @@ namespace QMeas
 inductive Pauli1 | X | Y | Z
   deriving DecidableEq, Repr
 
-/-- Two-qubit Pauli labels for joint measurements. -/
-inductive Pauli2 | XX | ZZ | XZ | ZX | YZ | ZY | YX | XY | YY
-  deriving DecidableEq, Repr
-
 /-- A QMeas command.  `Reg` is the type of quantum register names,
     `Bit`  is the type of classical bit names. -/
 inductive Stmt where
@@ -27,8 +23,11 @@ inductive Stmt where
   | skip : Stmt
   /-- `r := M_P(q)` for single-qubit Pauli `P`. -/
   | meas1 (r : Nat) (P : Pauli1) (q : Nat) : Stmt
-  /-- `r := M_P(qa, qb)` for two-qubit Pauli `P`. -/
-  | meas2 (r : Nat) (P : Pauli2) (qa qb : Nat) : Stmt
+  /-- `r := M_PP(qa, qb)` for multi-qubit Pauli `PP` given as a list
+      of single-qubit labels (one per measured qubit).  For the two-qubit
+      case the list has length 2, e.g., `[.Z, .Z]` for $M_{ZZ}$.
+      Generalizes the old `Pauli2` 9-tag enum (reviewer R06). -/
+  | meas2 (r : Nat) (P : List Pauli1) (qa qb : Nat) : Stmt
   /-- Pauli-frame update on a single qubit. -/
   | frame (P : Pauli1) (q : Nat) : Stmt
   /-- Sequencing. -/
