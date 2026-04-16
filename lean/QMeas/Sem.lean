@@ -117,6 +117,16 @@ inductive Step {D : Nat} : Config D → Obs → Config D → Prop where
   | ifNeg (ρ : Vec D) (σ : Store) (F : Frame) (r : Nat) (s₁ s₂ : Stmt)
       (h : σ r = some (-1)) :
       Step ⟨ρ, σ, F, .ifPos r s₁ s₂⟩ .silent ⟨ρ, σ, F, s₂⟩
+  /-- Conditional: `r` unset — reduce to `abort` rather than silently
+      getting stuck.  This makes the ill-formed-program case observable
+      in the accept/reject partition (reviewer R12 in
+      `notes/reviewer_plan.md`).  A well-typed QMeas program binds
+      every classical register it reads before the corresponding
+      `ifPos`/`ifNeg` fires, so this rule is unreachable from
+      well-typed inputs; it exists purely to rule out silent failure. -/
+  | ifUnset (ρ : Vec D) (σ : Store) (F : Frame) (r : Nat) (s₁ s₂ : Stmt)
+      (h : σ r = none) :
+      Step ⟨ρ, σ, F, .ifPos r s₁ s₂⟩ .silent ⟨ρ, σ, F, .abort⟩
   /-- For-loop: zero iterations. -/
   | forZero (ρ : Vec D) (σ : Store) (F : Frame) (body : Stmt) :
       Step ⟨ρ, σ, F, .forLoop 0 body⟩ .silent ⟨ρ, σ, F, .skip⟩
