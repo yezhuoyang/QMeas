@@ -35,8 +35,13 @@ inductive Stmt where
   | seq : Stmt → Stmt → Stmt
   /-- `if r = +1 then s1 else s2` (treats classical-bit value as ±1). -/
   | ifPos (r : Nat) (s1 s2 : Stmt) : Stmt
-  /-- Bounded for-loop with counter name `i`, bound `N`, and body `body`. -/
-  | forLoop (i : Nat) (N : Nat) (body : Stmt) : Stmt
+  /-- Bounded for-loop: iterate `body` exactly `N` times.  The iteration
+      index is not exposed to the body (the body runs the same program
+      each time, modulo its reads of the classical store).  A
+      reader-visible counter would be a straightforward extension;
+      it is omitted here because the original `i` parameter was a
+      ghost (reviewer R07 in `reviewer_plan.md`). -/
+  | forLoop (N : Nat) (body : Stmt) : Stmt
   /-- Discard a quantum register from the live set. -/
   | discard (q : Nat) : Stmt
   /-- `abort` — stuck terminal used for post-selection (e.g.\ in cultivation).

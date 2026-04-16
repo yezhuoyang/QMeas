@@ -118,12 +118,12 @@ inductive Step {D : Nat} : Config D → Obs → Config D → Prop where
       (h : σ r = some (-1)) :
       Step ⟨ρ, σ, F, .ifPos r s₁ s₂⟩ .silent ⟨ρ, σ, F, s₂⟩
   /-- For-loop: zero iterations. -/
-  | forZero (ρ : Vec D) (σ : Store) (F : Frame) (i : Nat) (body : Stmt) :
-      Step ⟨ρ, σ, F, .forLoop i 0 body⟩ .silent ⟨ρ, σ, F, .skip⟩
+  | forZero (ρ : Vec D) (σ : Store) (F : Frame) (body : Stmt) :
+      Step ⟨ρ, σ, F, .forLoop 0 body⟩ .silent ⟨ρ, σ, F, .skip⟩
   /-- For-loop: unroll one iteration. -/
-  | forUnroll (ρ : Vec D) (σ : Store) (F : Frame) (i N : Nat) (body : Stmt) :
-      Step ⟨ρ, σ, F, .forLoop i (N+1) body⟩ .silent
-           ⟨ρ, σ, F, .seq body (.forLoop i N body)⟩
+  | forUnroll (ρ : Vec D) (σ : Store) (F : Frame) (N : Nat) (body : Stmt) :
+      Step ⟨ρ, σ, F, .forLoop (N+1) body⟩ .silent
+           ⟨ρ, σ, F, .seq body (.forLoop N body)⟩
   /-- Discard a quantum register.
 
       Reviewer comment R11 in `notes/reviewer_plan.md` flagged a real

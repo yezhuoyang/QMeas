@@ -30,7 +30,7 @@ def measCount : Stmt → Nat
   | .frame _ _         => 0
   | .seq s₁ s₂         => measCount s₁ + measCount s₂
   | .ifPos _ s₁ s₂     => max (measCount s₁) (measCount s₂)
-  | .forLoop _ N body  => N * measCount body
+  | .forLoop N body    => N * measCount body
   | .discard _         => 0
   | .abort             => 0
 
