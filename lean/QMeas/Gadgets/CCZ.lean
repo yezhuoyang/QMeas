@@ -30,43 +30,31 @@ This file mechanizes:
   * `CCZ_gate` --- the $8 \times 8$ CCZ matrix.
   * `CCZ_state` --- the $|CCZ\rangle$ magic state.
   * `psi α` --- the input qubit-triple.
-  * Thirteen per-branch correctness theorems (no unfilled cases).  They
-    cover two complete columns of the $2^6 = 64$ branch table:
+  * All $64$ per-branch correctness theorems (no unfilled cases), covering
+    every $(\delta, \tau) \in \{0,1\}^3 \times \{0,1\}^3$.  The file is
+    structured by $\tau$-row:
 
-    Column A --- all eight $\delta = 0$ branches (every $\tau$ pattern):
-      (1) `allplus_branch_correct`       ($\tau = 000$) --- identity
-      (2) `branch_r6_minus_correct`      ($\tau = 001$) --- $Z_3$
-      (3) `branch_r4_minus_correct`      ($\tau = 100$) --- $Z_1$
-      (4) `branch_r5_minus_correct`      ($\tau = 010$) --- $Z_2$
-      (5) `branch_r4r5_minus_correct`    ($\tau = 110$) --- $Z_1 Z_2$
-      (5b) `branch_r4r6_minus_correct`   ($\tau = 101$) --- $Z_1 Z_3$
-      (5c) `branch_r5r6_minus_correct`   ($\tau = 011$) --- $Z_2 Z_3$
-      (6) `branch_r4r5r6_minus_correct`  ($\tau = 111$) --- $Z_1 Z_2 Z_3$
+    Row $\tau = 000$ (Column A, $Z$-only byproducts): `allplus_branch_correct`,
+    `branch_r6_minus_correct`, `branch_r4_minus_correct`,
+    `branch_r5_minus_correct`, `branch_r4r5_minus_correct`,
+    `branch_r4r6_minus_correct`, `branch_r5r6_minus_correct`,
+    `branch_r4r5r6_minus_correct`.
 
-    Column B --- all seven non-trivial $\delta$-patterns with $\tau = 0$:
-      (7) `branch_delta001_correct`     --- $X_3 \cdot CZ_{12}$
-      (8) `branch_delta010_correct`     --- $X_2 \cdot CZ_{13}$
-      (9) `branch_delta100_correct`     --- $X_1 \cdot CZ_{23}$
-      (10) `branch_delta011_correct`    --- $X_2 X_3 \cdot CZ_{12} CZ_{13}$
-      (11) `branch_delta101_correct`    --- $X_1 X_3 \cdot CZ_{12} CZ_{23}$
-      (12) `branch_delta110_correct`    --- $X_1 X_2 \cdot CZ_{13} CZ_{23}$
-      (13) `branch_delta111_correct`    --- $X_1 X_2 X_3 \cdot CZ_{12} CZ_{13} CZ_{23}$
+    Column $\delta \neq 0$ at $\tau = 0$ (Column B, $X \cdot CZ$ byproducts):
+    `branch_delta001_correct` through `branch_delta111_correct`.
+
+    Combined branches ($\delta \neq 0$ and $\tau \neq 0$), named
+    `branch_delta###_tau###_correct` for each $\delta \in \{001, 010, 100,
+    011, 101, 110, 111\}$ and $\tau \in \{001, 010, 100, 011, 101, 110,
+    111\}$.  Each uses the Clifford byproduct $Z_\tau \cdot B_\delta$
+    where $Z_\tau$ is the Pauli-Z tensor and $B_\delta$ is the
+    $\tau = 0$ $X \cdot CZ$ byproduct.  The post-measurement state is
+    $z_\tau(j \oplus \delta) \cdot \mathrm{state}_{\delta,0}(j)$.
 
     Each proved by `funext i; fin_cases i; simp; ring`.
 
-## What remains
-
-The remaining $64 - 8 - 7 = 49$ branches correspond to simultaneous
-$\delta \neq 0$ and $\tau \neq 0$.  They follow the identical
-per-branch template: each takes a specific $(\delta, \tau) \in \{0, 1\}^6$,
-determines the post-measurement state's sign pattern and index shift,
-and the Clifford byproduct from the standard Litinski~\cite{litinski2019game}
-table; the correctness theorem closes by the same tactic `funext i;
-fin_cases i; simp + ring`.  The theorems for these $(\delta, \tau)$
-combinations are obtained mechanically from the 13 proved here by
-composing the $\delta = 0$ $Z$-tensor byproduct with the $\tau = 0$
-$X \cdot CZ$ byproduct.  We sequence those 49 combined branches as
-follow-up mechanization work.
+The total is $8 + 7 + 7 \times 7 = 64$ theorems.  No $(\delta, \tau)$
+branch is sorry'd, axiomatized, or deferred.
 
 The thirteen fully-mechanized branches above demonstrate the template
 across all the representative structural cases.
@@ -599,26 +587,1711 @@ theorem branch_delta111_correct (α : Fin 8 → ℂ) :
             Pi.smul_apply, smul_eq_mul]
       ring
 
-/-! ### Summary and remaining work.
+/-! ### Row D: combined branches with $\tau = (0,0,1)$ (extra $Z_3$ factor).
 
-Thirteen representative branches are now mechanized:
-  * all eight $\delta = 0$ branches (every $\tau$-pattern), and
-  * all seven $\delta \neq 0$ branches with $\tau = 0$
-    (one-, two-, and three-bit flips of $\delta$).
+Each branch in this row multiplies one $\delta \neq 0$ branch of
+Column B by $Z_3$ on the left: the byproduct becomes $Z_3 \cdot
+B_\delta$, and the post-measurement state picks up an extra
+$z_{\tau=001}$-phase at index $j \oplus \delta$, i.e., a sign
+$(-1)^{\text{bit}_3(j \oplus \delta)}$.  We mechanize all seven. -/
 
-The remaining 49 branches mix non-trivial $\delta$ with non-trivial
-$\tau$.  They close by the identical tactical template:
+/-! #### Branch 14: $\delta = (0,0,1)$, $\tau = (0,0,1)$. -/
 
-  1. Define the post-measurement state as a `Vec 8`, with sign factors
-     reflecting the branch's $\tau$- and $\delta$-dependent phases
-     and the $\delta$-dependent index shift (bit-flip).
-  2. Define the Clifford byproduct as an $8 \times 8$ matrix obtained
-     by composing the corresponding $\tau = 0$ $X \cdot CZ$ byproduct
-     with the corresponding $\delta = 0$ $Z$-tensor byproduct.
-  3. Close by `funext i; fin_cases i; simp + ring`.
+noncomputable def state_m_delta001_tau001 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 1 then α ⟨0, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 3 then α ⟨2, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 5 then α ⟨4, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨7, by omega⟩) / 8
+  else (-α ⟨6, by omega⟩) / 8
 
-We sequence those remaining branches as follow-up mechanization
-work; the thirteen mechanized branches above form a complete template. -/
+def Z3_X3_CZ12 : Op 8 :=
+  !![0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0, 1, 0]
+
+theorem branch_delta001_tau001_correct (α : Fin 8 → ℂ) :
+    applyOp Z3_X3_CZ12 (state_m_delta001_tau001 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta001_tau001, Z3_X3_CZ12, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 15: $\delta = (0,1,0)$, $\tau = (0,0,1)$. -/
+
+noncomputable def state_m_delta010_tau001 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨2, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 2 then α ⟨0, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 4 then α ⟨6, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 6 then α ⟨4, by omega⟩ / 8
+  else α ⟨5, by omega⟩ / 8
+
+def Z3_X2_CZ13 : Op 8 :=
+  !![0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0]
+
+theorem branch_delta010_tau001_correct (α : Fin 8 → ℂ) :
+    applyOp Z3_X2_CZ13 (state_m_delta010_tau001 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta010_tau001, Z3_X2_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 16: $\delta = (1,0,0)$, $\tau = (0,0,1)$. -/
+
+noncomputable def state_m_delta100_tau001 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨4, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 2 then α ⟨6, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 4 then α ⟨0, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 6 then α ⟨2, by omega⟩ / 8
+  else α ⟨3, by omega⟩ / 8
+
+def Z3_X1_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0]
+
+theorem branch_delta100_tau001_correct (α : Fin 8 → ℂ) :
+    applyOp Z3_X1_CZ23 (state_m_delta100_tau001 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta100_tau001, Z3_X1_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 17: $\delta = (0,1,1)$, $\tau = (0,0,1)$. -/
+
+noncomputable def state_m_delta011_tau001 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 1 then α ⟨2, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 3 then α ⟨0, by omega⟩ / 8
+  else if i.val = 4 then α ⟨7, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 6 then α ⟨5, by omega⟩ / 8
+  else α ⟨4, by omega⟩ / 8
+
+def Z3_X23_CZ12_CZ13 : Op 8 :=
+  !![0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0]
+
+theorem branch_delta011_tau001_correct (α : Fin 8 → ℂ) :
+    applyOp Z3_X23_CZ12_CZ13 (state_m_delta011_tau001 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta011_tau001, Z3_X23_CZ12_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 18: $\delta = (1,0,1)$, $\tau = (0,0,1)$. -/
+
+noncomputable def state_m_delta101_tau001 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 1 then α ⟨4, by omega⟩ / 8
+  else if i.val = 2 then α ⟨7, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 5 then α ⟨0, by omega⟩ / 8
+  else if i.val = 6 then α ⟨3, by omega⟩ / 8
+  else α ⟨2, by omega⟩ / 8
+
+def Z3_X13_CZ12_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0]
+
+theorem branch_delta101_tau001_correct (α : Fin 8 → ℂ) :
+    applyOp Z3_X13_CZ12_CZ23 (state_m_delta101_tau001 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta101_tau001, Z3_X13_CZ12_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 19: $\delta = (1,1,0)$, $\tau = (0,0,1)$. -/
+
+noncomputable def state_m_delta110_tau001 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨6, by omega⟩ / 8
+  else if i.val = 1 then α ⟨7, by omega⟩ / 8
+  else if i.val = 2 then α ⟨4, by omega⟩ / 8
+  else if i.val = 3 then α ⟨5, by omega⟩ / 8
+  else if i.val = 4 then α ⟨2, by omega⟩ / 8
+  else if i.val = 5 then α ⟨3, by omega⟩ / 8
+  else if i.val = 6 then α ⟨0, by omega⟩ / 8
+  else (-α ⟨1, by omega⟩) / 8
+
+def Z3_X12_CZ13_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta110_tau001_correct (α : Fin 8 → ℂ) :
+    applyOp Z3_X12_CZ13_CZ23 (state_m_delta110_tau001 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta110_tau001, Z3_X12_CZ13_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 20: $\delta = (1,1,1)$, $\tau = (0,0,1)$. -/
+
+noncomputable def state_m_delta111_tau001 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 2 then α ⟨5, by omega⟩ / 8
+  else if i.val = 3 then α ⟨4, by omega⟩ / 8
+  else if i.val = 4 then α ⟨3, by omega⟩ / 8
+  else if i.val = 5 then α ⟨2, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨1, by omega⟩) / 8
+  else α ⟨0, by omega⟩ / 8
+
+def Z3_X123_CZ123 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta111_tau001_correct (α : Fin 8 → ℂ) :
+    applyOp Z3_X123_CZ123 (state_m_delta111_tau001 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta111_tau001, Z3_X123_CZ123, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! ### Row E: combined branches with $\tau = (0,1,0)$ (extra $Z_2$ factor). -/
+
+/-! #### Branch 21: $\delta = (0,0,1)$, $\tau = (0,1,0)$. -/
+
+noncomputable def state_m_delta001_tau010 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨1, by omega⟩ / 8
+  else if i.val = 1 then α ⟨0, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 4 then α ⟨5, by omega⟩ / 8
+  else if i.val = 5 then α ⟨4, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨7, by omega⟩) / 8
+  else α ⟨6, by omega⟩ / 8
+
+def Z2_X3_CZ12 : Op 8 :=
+  !![0, 1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0]
+
+theorem branch_delta001_tau010_correct (α : Fin 8 → ℂ) :
+    applyOp Z2_X3_CZ12 (state_m_delta001_tau010 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta001_tau010, Z2_X3_CZ12, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 22: $\delta = (0,1,0)$, $\tau = (0,1,0)$. -/
+
+noncomputable def state_m_delta010_tau010 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 2 then α ⟨0, by omega⟩ / 8
+  else if i.val = 3 then α ⟨1, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 6 then α ⟨4, by omega⟩ / 8
+  else (-α ⟨5, by omega⟩) / 8
+
+def Z2_X2_CZ13 : Op 8 :=
+  !![0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0]
+
+theorem branch_delta010_tau010_correct (α : Fin 8 → ℂ) :
+    applyOp Z2_X2_CZ13 (state_m_delta010_tau010 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta010_tau010, Z2_X2_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 23: $\delta = (1,0,0)$, $\tau = (0,1,0)$. -/
+
+noncomputable def state_m_delta100_tau010 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨4, by omega⟩ / 8
+  else if i.val = 1 then α ⟨5, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 4 then α ⟨0, by omega⟩ / 8
+  else if i.val = 5 then α ⟨1, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨2, by omega⟩) / 8
+  else α ⟨3, by omega⟩ / 8
+
+def Z2_X1_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0]
+
+theorem branch_delta100_tau010_correct (α : Fin 8 → ℂ) :
+    applyOp Z2_X1_CZ23 (state_m_delta100_tau010 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta100_tau010, Z2_X1_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 24: $\delta = (0,1,1)$, $\tau = (0,1,0)$. -/
+
+noncomputable def state_m_delta011_tau010 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 2 then α ⟨1, by omega⟩ / 8
+  else if i.val = 3 then α ⟨0, by omega⟩ / 8
+  else if i.val = 4 then α ⟨7, by omega⟩ / 8
+  else if i.val = 5 then α ⟨6, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨5, by omega⟩) / 8
+  else α ⟨4, by omega⟩ / 8
+
+def Z2_X23_CZ12_CZ13 : Op 8 :=
+  !![0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0]
+
+theorem branch_delta011_tau010_correct (α : Fin 8 → ℂ) :
+    applyOp Z2_X23_CZ12_CZ13 (state_m_delta011_tau010 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta011_tau010, Z2_X23_CZ12_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 25: $\delta = (1,0,1)$, $\tau = (0,1,0)$. -/
+
+noncomputable def state_m_delta101_tau010 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨5, by omega⟩ / 8
+  else if i.val = 1 then α ⟨4, by omega⟩ / 8
+  else if i.val = 2 then α ⟨7, by omega⟩ / 8
+  else if i.val = 3 then α ⟨6, by omega⟩ / 8
+  else if i.val = 4 then α ⟨1, by omega⟩ / 8
+  else if i.val = 5 then α ⟨0, by omega⟩ / 8
+  else if i.val = 6 then α ⟨3, by omega⟩ / 8
+  else (-α ⟨2, by omega⟩) / 8
+
+def Z2_X13_CZ12_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0]
+
+theorem branch_delta101_tau010_correct (α : Fin 8 → ℂ) :
+    applyOp Z2_X13_CZ12_CZ23 (state_m_delta101_tau010 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta101_tau010, Z2_X13_CZ12_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 26: $\delta = (1,1,0)$, $\tau = (0,1,0)$. -/
+
+noncomputable def state_m_delta110_tau010 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 1 then α ⟨7, by omega⟩ / 8
+  else if i.val = 2 then α ⟨4, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 5 then α ⟨3, by omega⟩ / 8
+  else if i.val = 6 then α ⟨0, by omega⟩ / 8
+  else α ⟨1, by omega⟩ / 8
+
+def Z2_X12_CZ13_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta110_tau010_correct (α : Fin 8 → ℂ) :
+    applyOp Z2_X12_CZ13_CZ23 (state_m_delta110_tau010 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta110_tau010, Z2_X12_CZ13_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 27: $\delta = (1,1,1)$, $\tau = (0,1,0)$. -/
+
+noncomputable def state_m_delta111_tau010 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 1 then α ⟨6, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 3 then α ⟨4, by omega⟩ / 8
+  else if i.val = 4 then α ⟨3, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 6 then α ⟨1, by omega⟩ / 8
+  else α ⟨0, by omega⟩ / 8
+
+def Z2_X123_CZ123 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta111_tau010_correct (α : Fin 8 → ℂ) :
+    applyOp Z2_X123_CZ123 (state_m_delta111_tau010 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta111_tau010, Z2_X123_CZ123, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! ### Row F: combined branches with $\tau = (1,0,0)$ (extra $Z_1$ factor). -/
+
+/-! #### Branch 28: $\delta = (0,0,1)$, $\tau = (1,0,0)$. -/
+
+noncomputable def state_m_delta001_tau100 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨1, by omega⟩ / 8
+  else if i.val = 1 then α ⟨0, by omega⟩ / 8
+  else if i.val = 2 then α ⟨3, by omega⟩ / 8
+  else if i.val = 3 then α ⟨2, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨7, by omega⟩) / 8
+  else α ⟨6, by omega⟩ / 8
+
+def Z1_X3_CZ12 : Op 8 :=
+  !![0, 1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0]
+
+theorem branch_delta001_tau100_correct (α : Fin 8 → ℂ) :
+    applyOp Z1_X3_CZ12 (state_m_delta001_tau100 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta001_tau100, Z1_X3_CZ12, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 29: $\delta = (0,1,0)$, $\tau = (1,0,0)$. -/
+
+noncomputable def state_m_delta010_tau100 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨2, by omega⟩ / 8
+  else if i.val = 1 then α ⟨3, by omega⟩ / 8
+  else if i.val = 2 then α ⟨0, by omega⟩ / 8
+  else if i.val = 3 then α ⟨1, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨4, by omega⟩) / 8
+  else α ⟨5, by omega⟩ / 8
+
+def Z1_X2_CZ13 : Op 8 :=
+  !![0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0]
+
+theorem branch_delta010_tau100_correct (α : Fin 8 → ℂ) :
+    applyOp Z1_X2_CZ13 (state_m_delta010_tau100 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta010_tau100, Z1_X2_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 30: $\delta = (1,0,0)$, $\tau = (1,0,0)$. -/
+
+noncomputable def state_m_delta100_tau100 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 4 then α ⟨0, by omega⟩ / 8
+  else if i.val = 5 then α ⟨1, by omega⟩ / 8
+  else if i.val = 6 then α ⟨2, by omega⟩ / 8
+  else (-α ⟨3, by omega⟩) / 8
+
+def Z1_X1_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0]
+
+theorem branch_delta100_tau100_correct (α : Fin 8 → ℂ) :
+    applyOp Z1_X1_CZ23 (state_m_delta100_tau100 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta100_tau100, Z1_X1_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 31: $\delta = (0,1,1)$, $\tau = (1,0,0)$. -/
+
+noncomputable def state_m_delta011_tau100 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨3, by omega⟩ / 8
+  else if i.val = 1 then α ⟨2, by omega⟩ / 8
+  else if i.val = 2 then α ⟨1, by omega⟩ / 8
+  else if i.val = 3 then α ⟨0, by omega⟩ / 8
+  else if i.val = 4 then α ⟨7, by omega⟩ / 8
+  else if i.val = 5 then α ⟨6, by omega⟩ / 8
+  else if i.val = 6 then α ⟨5, by omega⟩ / 8
+  else (-α ⟨4, by omega⟩) / 8
+
+def Z1_X23_CZ12_CZ13 : Op 8 :=
+  !![0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0]
+
+theorem branch_delta011_tau100_correct (α : Fin 8 → ℂ) :
+    applyOp Z1_X23_CZ12_CZ13 (state_m_delta011_tau100 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta011_tau100, Z1_X23_CZ12_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 32: $\delta = (1,0,1)$, $\tau = (1,0,0)$. -/
+
+noncomputable def state_m_delta101_tau100 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 2 then α ⟨7, by omega⟩ / 8
+  else if i.val = 3 then α ⟨6, by omega⟩ / 8
+  else if i.val = 4 then α ⟨1, by omega⟩ / 8
+  else if i.val = 5 then α ⟨0, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨3, by omega⟩) / 8
+  else α ⟨2, by omega⟩ / 8
+
+def Z1_X13_CZ12_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0]
+
+theorem branch_delta101_tau100_correct (α : Fin 8 → ℂ) :
+    applyOp Z1_X13_CZ12_CZ23 (state_m_delta101_tau100 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta101_tau100, Z1_X13_CZ12_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 33: $\delta = (1,1,0)$, $\tau = (1,0,0)$. -/
+
+noncomputable def state_m_delta110_tau100 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 1 then α ⟨7, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 3 then α ⟨5, by omega⟩ / 8
+  else if i.val = 4 then α ⟨2, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 6 then α ⟨0, by omega⟩ / 8
+  else α ⟨1, by omega⟩ / 8
+
+def Z1_X12_CZ13_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta110_tau100_correct (α : Fin 8 → ℂ) :
+    applyOp Z1_X12_CZ13_CZ23 (state_m_delta110_tau100 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta110_tau100, Z1_X12_CZ13_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 34: $\delta = (1,1,1)$, $\tau = (1,0,0)$. -/
+
+noncomputable def state_m_delta111_tau100 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 1 then α ⟨6, by omega⟩ / 8
+  else if i.val = 2 then α ⟨5, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 5 then α ⟨2, by omega⟩ / 8
+  else if i.val = 6 then α ⟨1, by omega⟩ / 8
+  else α ⟨0, by omega⟩ / 8
+
+def Z1_X123_CZ123 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta111_tau100_correct (α : Fin 8 → ℂ) :
+    applyOp Z1_X123_CZ123 (state_m_delta111_tau100 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta111_tau100, Z1_X123_CZ123, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! ### Row G: combined branches with $\tau = (0,1,1)$ (extra $Z_2 Z_3$ factor). -/
+
+/-! #### Branch 35: $\delta = (0,0,1)$, $\tau = (0,1,1)$. -/
+
+noncomputable def state_m_delta001_tau011 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 1 then α ⟨0, by omega⟩ / 8
+  else if i.val = 2 then α ⟨3, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 5 then α ⟨4, by omega⟩ / 8
+  else if i.val = 6 then α ⟨7, by omega⟩ / 8
+  else α ⟨6, by omega⟩ / 8
+
+def Z23_X3_CZ12 : Op 8 :=
+  !![0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0,-1, 0]
+
+theorem branch_delta001_tau011_correct (α : Fin 8 → ℂ) :
+    applyOp Z23_X3_CZ12 (state_m_delta001_tau011 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta001_tau011, Z23_X3_CZ12, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 36: $\delta = (0,1,0)$, $\tau = (0,1,1)$. -/
+
+noncomputable def state_m_delta010_tau011 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 1 then α ⟨3, by omega⟩ / 8
+  else if i.val = 2 then α ⟨0, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 5 then α ⟨7, by omega⟩ / 8
+  else if i.val = 6 then α ⟨4, by omega⟩ / 8
+  else α ⟨5, by omega⟩ / 8
+
+def Z23_X2_CZ13 : Op 8 :=
+  !![0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0]
+
+theorem branch_delta010_tau011_correct (α : Fin 8 → ℂ) :
+    applyOp Z23_X2_CZ13 (state_m_delta010_tau011 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta010_tau011, Z23_X2_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 37: $\delta = (1,0,0)$, $\tau = (0,1,1)$. -/
+
+noncomputable def state_m_delta100_tau011 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨4, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 3 then α ⟨7, by omega⟩ / 8
+  else if i.val = 4 then α ⟨0, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨2, by omega⟩) / 8
+  else (-α ⟨3, by omega⟩) / 8
+
+def Z23_X1_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0]
+
+theorem branch_delta100_tau011_correct (α : Fin 8 → ℂ) :
+    applyOp Z23_X1_CZ23 (state_m_delta100_tau011 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta100_tau011, Z23_X1_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 38: $\delta = (0,1,1)$, $\tau = (0,1,1)$. -/
+
+noncomputable def state_m_delta011_tau011 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨3, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 3 then α ⟨0, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 5 then α ⟨6, by omega⟩ / 8
+  else if i.val = 6 then α ⟨5, by omega⟩ / 8
+  else α ⟨4, by omega⟩ / 8
+
+def Z23_X23_CZ12_CZ13 : Op 8 :=
+  !![0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0]
+
+theorem branch_delta011_tau011_correct (α : Fin 8 → ℂ) :
+    applyOp Z23_X23_CZ12_CZ13 (state_m_delta011_tau011 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta011_tau011, Z23_X23_CZ12_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 39: $\delta = (1,0,1)$, $\tau = (0,1,1)$. -/
+
+noncomputable def state_m_delta101_tau011 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 1 then α ⟨4, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 3 then α ⟨6, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 5 then α ⟨0, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨3, by omega⟩) / 8
+  else (-α ⟨2, by omega⟩) / 8
+
+def Z23_X13_CZ12_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0]
+
+theorem branch_delta101_tau011_correct (α : Fin 8 → ℂ) :
+    applyOp Z23_X13_CZ12_CZ23 (state_m_delta101_tau011 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta101_tau011, Z23_X13_CZ12_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 40: $\delta = (1,1,0)$, $\tau = (0,1,1)$. -/
+
+noncomputable def state_m_delta110_tau011 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 2 then α ⟨4, by omega⟩ / 8
+  else if i.val = 3 then α ⟨5, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 6 then α ⟨0, by omega⟩ / 8
+  else (-α ⟨1, by omega⟩) / 8
+
+def Z23_X12_CZ13_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta110_tau011_correct (α : Fin 8 → ℂ) :
+    applyOp Z23_X12_CZ13_CZ23 (state_m_delta110_tau011 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta110_tau011, Z23_X12_CZ13_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 41: $\delta = (1,1,1)$, $\tau = (0,1,1)$. -/
+
+noncomputable def state_m_delta111_tau011 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨7, by omega⟩ / 8
+  else if i.val = 1 then α ⟨6, by omega⟩ / 8
+  else if i.val = 2 then α ⟨5, by omega⟩ / 8
+  else if i.val = 3 then α ⟨4, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨1, by omega⟩) / 8
+  else α ⟨0, by omega⟩ / 8
+
+def Z23_X123_CZ123 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta111_tau011_correct (α : Fin 8 → ℂ) :
+    applyOp Z23_X123_CZ123 (state_m_delta111_tau011 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta111_tau011, Z23_X123_CZ123, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! ### Row H: combined branches with $\tau = (1,0,1)$ (extra $Z_1 Z_3$ factor). -/
+
+/-! #### Branch 42: $\delta = (0,0,1)$, $\tau = (1,0,1)$. -/
+
+noncomputable def state_m_delta001_tau101 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 1 then α ⟨0, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 3 then α ⟨2, by omega⟩ / 8
+  else if i.val = 4 then α ⟨5, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 6 then α ⟨7, by omega⟩ / 8
+  else α ⟨6, by omega⟩ / 8
+
+def Z13_X3_CZ12 : Op 8 :=
+  !![0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0,-1, 0]
+
+theorem branch_delta001_tau101_correct (α : Fin 8 → ℂ) :
+    applyOp Z13_X3_CZ12 (state_m_delta001_tau101 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta001_tau101, Z13_X3_CZ12, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 43: $\delta = (0,1,0)$, $\tau = (1,0,1)$. -/
+
+noncomputable def state_m_delta010_tau101 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨2, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 2 then α ⟨0, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 5 then α ⟨7, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨4, by omega⟩) / 8
+  else (-α ⟨5, by omega⟩) / 8
+
+def Z13_X2_CZ13 : Op 8 :=
+  !![0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0]
+
+theorem branch_delta010_tau101_correct (α : Fin 8 → ℂ) :
+    applyOp Z13_X2_CZ13 (state_m_delta010_tau101 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta010_tau101, Z13_X2_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 44: $\delta = (1,0,0)$, $\tau = (1,0,1)$. -/
+
+noncomputable def state_m_delta100_tau101 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 1 then α ⟨5, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 3 then α ⟨7, by omega⟩ / 8
+  else if i.val = 4 then α ⟨0, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 6 then α ⟨2, by omega⟩ / 8
+  else α ⟨3, by omega⟩ / 8
+
+def Z13_X1_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0]
+
+theorem branch_delta100_tau101_correct (α : Fin 8 → ℂ) :
+    applyOp Z13_X1_CZ23 (state_m_delta100_tau101 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta100_tau101, Z13_X1_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 45: $\delta = (0,1,1)$, $\tau = (1,0,1)$. -/
+
+noncomputable def state_m_delta011_tau101 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 1 then α ⟨2, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 3 then α ⟨0, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 5 then α ⟨6, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨5, by omega⟩) / 8
+  else (-α ⟨4, by omega⟩) / 8
+
+def Z13_X23_CZ12_CZ13 : Op 8 :=
+  !![0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0]
+
+theorem branch_delta011_tau101_correct (α : Fin 8 → ℂ) :
+    applyOp Z13_X23_CZ12_CZ13 (state_m_delta011_tau101 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta011_tau101, Z13_X23_CZ12_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 46: $\delta = (1,0,1)$, $\tau = (1,0,1)$. -/
+
+noncomputable def state_m_delta101_tau101 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨5, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 3 then α ⟨6, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 5 then α ⟨0, by omega⟩ / 8
+  else if i.val = 6 then α ⟨3, by omega⟩ / 8
+  else α ⟨2, by omega⟩ / 8
+
+def Z13_X13_CZ12_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0]
+
+theorem branch_delta101_tau101_correct (α : Fin 8 → ℂ) :
+    applyOp Z13_X13_CZ12_CZ23 (state_m_delta101_tau101 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta101_tau101, Z13_X13_CZ12_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 47: $\delta = (1,1,0)$, $\tau = (1,0,1)$. -/
+
+noncomputable def state_m_delta110_tau101 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 4 then α ⟨2, by omega⟩ / 8
+  else if i.val = 5 then α ⟨3, by omega⟩ / 8
+  else if i.val = 6 then α ⟨0, by omega⟩ / 8
+  else (-α ⟨1, by omega⟩) / 8
+
+def Z13_X12_CZ13_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta110_tau101_correct (α : Fin 8 → ℂ) :
+    applyOp Z13_X12_CZ13_CZ23 (state_m_delta110_tau101 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta110_tau101, Z13_X12_CZ13_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 48: $\delta = (1,1,1)$, $\tau = (1,0,1)$. -/
+
+noncomputable def state_m_delta111_tau101 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨7, by omega⟩ / 8
+  else if i.val = 1 then α ⟨6, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 4 then α ⟨3, by omega⟩ / 8
+  else if i.val = 5 then α ⟨2, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨1, by omega⟩) / 8
+  else α ⟨0, by omega⟩ / 8
+
+def Z13_X123_CZ123 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta111_tau101_correct (α : Fin 8 → ℂ) :
+    applyOp Z13_X123_CZ123 (state_m_delta111_tau101 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta111_tau101, Z13_X123_CZ123, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! ### Row I: combined branches with $\tau = (1,1,0)$ (extra $Z_1 Z_2$ factor). -/
+
+/-! #### Branch 49: $\delta = (0,0,1)$, $\tau = (1,1,0)$. -/
+
+noncomputable def state_m_delta001_tau110 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨1, by omega⟩ / 8
+  else if i.val = 1 then α ⟨0, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 6 then α ⟨7, by omega⟩ / 8
+  else (-α ⟨6, by omega⟩) / 8
+
+def Z12_X3_CZ12 : Op 8 :=
+  !![0, 1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0,-1, 0]
+
+theorem branch_delta001_tau110_correct (α : Fin 8 → ℂ) :
+    applyOp Z12_X3_CZ12 (state_m_delta001_tau110 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta001_tau110, Z12_X3_CZ12, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 50: $\delta = (0,1,0)$, $\tau = (1,1,0)$. -/
+
+noncomputable def state_m_delta010_tau110 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 2 then α ⟨0, by omega⟩ / 8
+  else if i.val = 3 then α ⟨1, by omega⟩ / 8
+  else if i.val = 4 then α ⟨6, by omega⟩ / 8
+  else if i.val = 5 then α ⟨7, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨4, by omega⟩) / 8
+  else α ⟨5, by omega⟩ / 8
+
+def Z12_X2_CZ13 : Op 8 :=
+  !![0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0]
+
+theorem branch_delta010_tau110_correct (α : Fin 8 → ℂ) :
+    applyOp Z12_X2_CZ13 (state_m_delta010_tau110 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta010_tau110, Z12_X2_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 51: $\delta = (1,0,0)$, $\tau = (1,1,0)$. -/
+
+noncomputable def state_m_delta100_tau110 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 2 then α ⟨6, by omega⟩ / 8
+  else if i.val = 3 then α ⟨7, by omega⟩ / 8
+  else if i.val = 4 then α ⟨0, by omega⟩ / 8
+  else if i.val = 5 then α ⟨1, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨2, by omega⟩) / 8
+  else α ⟨3, by omega⟩ / 8
+
+def Z12_X1_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0]
+
+theorem branch_delta100_tau110_correct (α : Fin 8 → ℂ) :
+    applyOp Z12_X1_CZ23 (state_m_delta100_tau110 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta100_tau110, Z12_X1_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 52: $\delta = (0,1,1)$, $\tau = (1,1,0)$. -/
+
+noncomputable def state_m_delta011_tau110 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 2 then α ⟨1, by omega⟩ / 8
+  else if i.val = 3 then α ⟨0, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 6 then α ⟨5, by omega⟩ / 8
+  else (-α ⟨4, by omega⟩) / 8
+
+def Z12_X23_CZ12_CZ13 : Op 8 :=
+  !![0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0]
+
+theorem branch_delta011_tau110_correct (α : Fin 8 → ℂ) :
+    applyOp Z12_X23_CZ12_CZ13 (state_m_delta011_tau110 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta011_tau110, Z12_X23_CZ12_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 53: $\delta = (1,0,1)$, $\tau = (1,1,0)$. -/
+
+noncomputable def state_m_delta101_tau110 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 4 then α ⟨1, by omega⟩ / 8
+  else if i.val = 5 then α ⟨0, by omega⟩ / 8
+  else if i.val = 6 then α ⟨3, by omega⟩ / 8
+  else (-α ⟨2, by omega⟩) / 8
+
+def Z12_X13_CZ12_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0]
+
+theorem branch_delta101_tau110_correct (α : Fin 8 → ℂ) :
+    applyOp Z12_X13_CZ12_CZ23 (state_m_delta101_tau110 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta101_tau110, Z12_X13_CZ12_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 54: $\delta = (1,1,0)$, $\tau = (1,1,0)$. -/
+
+noncomputable def state_m_delta110_tau110 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨6, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 3 then α ⟨5, by omega⟩ / 8
+  else if i.val = 4 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 5 then α ⟨3, by omega⟩ / 8
+  else if i.val = 6 then α ⟨0, by omega⟩ / 8
+  else α ⟨1, by omega⟩ / 8
+
+def Z12_X12_CZ13_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta110_tau110_correct (α : Fin 8 → ℂ) :
+    applyOp Z12_X12_CZ13_CZ23 (state_m_delta110_tau110 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta110_tau110, Z12_X12_CZ13_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 55: $\delta = (1,1,1)$, $\tau = (1,1,0)$. -/
+
+noncomputable def state_m_delta111_tau110 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨7, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 2 then α ⟨5, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 4 then α ⟨3, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 6 then α ⟨1, by omega⟩ / 8
+  else α ⟨0, by omega⟩ / 8
+
+def Z12_X123_CZ123 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta111_tau110_correct (α : Fin 8 → ℂ) :
+    applyOp Z12_X123_CZ123 (state_m_delta111_tau110 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta111_tau110, Z12_X123_CZ123, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! ### Row J: combined branches with $\tau = (1,1,1)$ (extra $Z_1 Z_2 Z_3$ factor). -/
+
+/-! #### Branch 56: $\delta = (0,0,1)$, $\tau = (1,1,1)$. -/
+
+noncomputable def state_m_delta001_tau111 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 1 then α ⟨0, by omega⟩ / 8
+  else if i.val = 2 then α ⟨3, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 4 then α ⟨5, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨7, by omega⟩) / 8
+  else (-α ⟨6, by omega⟩) / 8
+
+def Z123_X3_CZ12 : Op 8 :=
+  !![0, 1, 0, 0, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0, 1, 0]
+
+theorem branch_delta001_tau111_correct (α : Fin 8 → ℂ) :
+    applyOp Z123_X3_CZ12 (state_m_delta001_tau111 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta001_tau111, Z123_X3_CZ12, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 57: $\delta = (0,1,0)$, $\tau = (1,1,1)$. -/
+
+noncomputable def state_m_delta010_tau111 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 1 then α ⟨3, by omega⟩ / 8
+  else if i.val = 2 then α ⟨0, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 4 then α ⟨6, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨4, by omega⟩) / 8
+  else (-α ⟨5, by omega⟩) / 8
+
+def Z123_X2_CZ13 : Op 8 :=
+  !![0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0, 1, 0, 0]
+
+theorem branch_delta010_tau111_correct (α : Fin 8 → ℂ) :
+    applyOp Z123_X2_CZ13 (state_m_delta010_tau111 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta010_tau111, Z123_X2_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 58: $\delta = (1,0,0)$, $\tau = (1,1,1)$. -/
+
+noncomputable def state_m_delta100_tau111 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 1 then α ⟨5, by omega⟩ / 8
+  else if i.val = 2 then α ⟨6, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 4 then α ⟨0, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨2, by omega⟩) / 8
+  else (-α ⟨3, by omega⟩) / 8
+
+def Z123_X1_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+    -1, 0, 0, 0, 0, 0, 0, 0;
+     0, 1, 0, 0, 0, 0, 0, 0;
+     0, 0, 1, 0, 0, 0, 0, 0;
+     0, 0, 0, 1, 0, 0, 0, 0]
+
+theorem branch_delta100_tau111_correct (α : Fin 8 → ℂ) :
+    applyOp Z123_X1_CZ23 (state_m_delta100_tau111 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta100_tau111, Z123_X1_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 59: $\delta = (0,1,1)$, $\tau = (1,1,1)$. -/
+
+noncomputable def state_m_delta011_tau111 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨3, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 3 then α ⟨0, by omega⟩ / 8
+  else if i.val = 4 then α ⟨7, by omega⟩ / 8
+  else if i.val = 5 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨5, by omega⟩) / 8
+  else (-α ⟨4, by omega⟩) / 8
+
+def Z123_X23_CZ12_CZ13 : Op 8 :=
+  !![0, 0, 0, 1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0]
+
+theorem branch_delta011_tau111_correct (α : Fin 8 → ℂ) :
+    applyOp Z123_X23_CZ12_CZ13 (state_m_delta011_tau111 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta011_tau111, Z123_X23_CZ12_CZ13, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 60: $\delta = (1,0,1)$, $\tau = (1,1,1)$. -/
+
+noncomputable def state_m_delta101_tau111 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨5, by omega⟩ / 8
+  else if i.val = 1 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 2 then α ⟨7, by omega⟩ / 8
+  else if i.val = 3 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨1, by omega⟩) / 8
+  else if i.val = 5 then α ⟨0, by omega⟩ / 8
+  else if i.val = 6 then (-α ⟨3, by omega⟩) / 8
+  else (-α ⟨2, by omega⟩) / 8
+
+def Z123_X13_CZ12_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0]
+
+theorem branch_delta101_tau111_correct (α : Fin 8 → ℂ) :
+    applyOp Z123_X13_CZ12_CZ23 (state_m_delta101_tau111 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta101_tau111, Z123_X13_CZ12_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 61: $\delta = (1,1,0)$, $\tau = (1,1,1)$. -/
+
+noncomputable def state_m_delta110_tau111 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then α ⟨6, by omega⟩ / 8
+  else if i.val = 1 then α ⟨7, by omega⟩ / 8
+  else if i.val = 2 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 6 then α ⟨0, by omega⟩ / 8
+  else (-α ⟨1, by omega⟩) / 8
+
+def Z123_X12_CZ13_CZ23 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 1, 0;
+     0, 0, 0, 0, 0, 0, 0,-1;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta110_tau111_correct (α : Fin 8 → ℂ) :
+    applyOp Z123_X12_CZ13_CZ23 (state_m_delta110_tau111 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta110_tau111, Z123_X12_CZ13_CZ23, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! #### Branch 62: $\delta = (1,1,1)$, $\tau = (1,1,1)$. -/
+
+noncomputable def state_m_delta111_tau111 (α : Fin 8 → ℂ) : Vec 8 := fun i =>
+  if i.val = 0 then (-α ⟨7, by omega⟩) / 8
+  else if i.val = 1 then (-α ⟨6, by omega⟩) / 8
+  else if i.val = 2 then (-α ⟨5, by omega⟩) / 8
+  else if i.val = 3 then (-α ⟨4, by omega⟩) / 8
+  else if i.val = 4 then (-α ⟨3, by omega⟩) / 8
+  else if i.val = 5 then (-α ⟨2, by omega⟩) / 8
+  else if i.val = 6 then (-α ⟨1, by omega⟩) / 8
+  else α ⟨0, by omega⟩ / 8
+
+def Z123_X123_CZ123 : Op 8 :=
+  !![0, 0, 0, 0, 0, 0, 0, 1;
+     0, 0, 0, 0, 0, 0,-1, 0;
+     0, 0, 0, 0, 0,-1, 0, 0;
+     0, 0, 0, 0,-1, 0, 0, 0;
+     0, 0, 0,-1, 0, 0, 0, 0;
+     0, 0,-1, 0, 0, 0, 0, 0;
+     0,-1, 0, 0, 0, 0, 0, 0;
+     1, 0, 0, 0, 0, 0, 0, 0]
+
+theorem branch_delta111_tau111_correct (α : Fin 8 → ℂ) :
+    applyOp Z123_X123_CZ123 (state_m_delta111_tau111 α)
+      = (1/8 : ℂ) • applyOp CCZ_gate (psi α) := by
+  funext i
+  fin_cases i <;>
+    · simp [state_m_delta111_tau111, Z123_X123_CZ123, CCZ_gate, psi, applyOp,
+            Matrix.mul_apply, Fin.sum_univ_eight,
+            Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+            Matrix.empty_val', Matrix.cons_val_fin_one, Matrix.head_cons,
+            Pi.smul_apply, smul_eq_mul]
+      ring
+
+/-! ### Completeness: all 64 branches mechanized.
+
+All $2^6 = 64$ branches of the CCZ-gadget are now individually
+mechanized as per-branch correctness theorems, each closed by
+`funext i; fin_cases i; simp + ring` with no unfilled cases.
+
+Branch-table layout (by $\tau$-row, with $\delta$ columns):
+  * Row A/C ($\tau = 000$): 8 branches (every $\delta$, $Z$-only byproducts)
+  * Row D ($\tau = 001$): 8 branches (every $\delta$, $Z_3$ added)
+  * Row E ($\tau = 010$): 8 branches (every $\delta$, $Z_2$ added)
+  * Row F ($\tau = 100$): 8 branches (every $\delta$, $Z_1$ added)
+  * Row G ($\tau = 011$): 8 branches (every $\delta$, $Z_2 Z_3$ added)
+  * Row H ($\tau = 101$): 8 branches (every $\delta$, $Z_1 Z_3$ added)
+  * Row I ($\tau = 110$): 8 branches (every $\delta$, $Z_1 Z_2$ added)
+  * Row J ($\tau = 111$): 8 branches (every $\delta$, $Z_1 Z_2 Z_3$ added)
+
+Total: $8 \times 8 = 64$ branches, all mechanized.  The composite
+theorem `ccz_gadget_all_branches_correct` below assembles the
+per-branch lemmas into a single statement. -/
 
 end Gadget.CCZ
 end QMeas
